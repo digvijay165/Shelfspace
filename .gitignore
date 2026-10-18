@@ -1,0 +1,9 @@
+# Private library data: accounts, password hashes and books
+data.json
+data.json.tmp
+test-data.json
+# Owner email for local admin access (use ADMIN_EMAIL on hosted installs)
+admin-email.txt
+node_modules/
+.env
+.claude/
