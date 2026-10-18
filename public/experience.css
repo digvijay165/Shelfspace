@@ -1,0 +1,128 @@
+/* Admin: sidebar badge, overview, search, review notes, readers */
+.nav-badge{min-width:18px;height:18px;margin-left:auto;padding:0 5px;border-radius:20px;display:inline-grid;place-items:center;background:#c58653;color:#fff;font-size:9px;font-weight:700}
+.admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 22px}
+.admin-stat{padding:14px 16px;border:1px solid #e8e5dd;border-radius:9px;display:grid;gap:4px;background:#fbfaf6}
+.admin-stat span{color:#8d8e83;font-size:8px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.admin-stat strong{color:#383b34;font-family:var(--serif);font-size:30px;font-weight:500;line-height:1.1}
+.admin-stat small{color:#9a9a90;font-size:10px}
+.admin-stat.stat-pending{border-color:#ecdcbc;background:#fbf6ea}
+.admin-stat.stat-pending strong{color:#94703f}
+.admin-search{height:38px;margin-top:14px;padding:0 12px;border:1px solid #e5e2da;border-radius:8px;display:flex;align-items:center;gap:8px;background:#fffefa;color:#9a9b90}
+.admin-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:var(--ink);font-size:12px}
+.moderation-facts{margin:4px 0 0;color:#a2a398;font-size:9px}
+.review-note{margin:10px 0 0;padding:8px 10px;border-left:2px solid #d9d6cb;display:grid;gap:3px;background:#f4f2ec;color:#76776d;font-size:10px}
+.review-note strong{color:#5f645a;font-weight:600}
+.review-note span{font-family:var(--serif);font-style:italic}
+.decline-form{margin-top:12px;display:grid;gap:4px}
+.decline-form textarea{width:100%;resize:vertical}
+.button-danger{border:1px solid #efd9d3;background:transparent;color:#a4513f}
+.button-danger:hover{background:#f8e9e5}
+.moderation-actions .button-danger{margin-left:auto}
+.admin-user-list{display:grid;gap:8px;padding-top:16px}
+.user-row{padding:12px 14px;border:1px solid #e8e5dd;border-radius:8px;display:grid;grid-template-columns:36px minmax(0,1.3fr) minmax(0,1.4fr) auto 104px;align-items:center;gap:14px;background:#fbfaf6}
+.user-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--green-light);color:var(--green-dark);font-family:var(--serif);font-size:16px;font-weight:600}
+.user-who{min-width:0;display:grid;gap:2px}
+.user-who strong{color:#383b34;font-size:12px}
+.user-who em{color:#9a9a90;font-style:normal;font-weight:400}
+.user-who span{overflow:hidden;color:#929389;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.user-stats{color:#8d8e83;font-size:10px}
+.role-badge{padding:4px 9px;border-radius:20px;font-size:9px;font-weight:600}
+.role-admin{background:#e5ede2;color:#4c6249}
+.role-reader{background:#efeee8;color:#84867b}
+.user-actions{display:flex;justify-content:flex-end}
+.user-actions .button{min-height:30px;padding:0 10px;font-size:9px;box-shadow:none}
+
+/* Library: review status for the uploader */
+.status-text-pending{color:#a88a57}
+.status-text-rejected{color:#a0675a}
+.book-review-note{margin-top:8px;padding:8px 9px;border-radius:6px;background:#f6ece8}
+.book-review-note p{margin:0 0 5px;color:#8b5d52;font-family:var(--serif);font-size:11px;font-style:italic;line-height:1.45}
+.book-review-note .text-button{padding:0;color:#7a5146;font-size:10px}
+
+/* Reader tools and contents */
+.reader-tools{justify-self:end;display:flex;align-items:center;gap:4px}
+.reader-tool,.reader-tool.reader-menu{width:34px;height:34px;padding:0;border:1px solid transparent;border-radius:50%;display:grid;place-items:center;background:transparent;color:#65695f;font-size:15px;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+.reader-tool:hover{background:#eceee6}
+.reader-tool[aria-pressed="true"],.reader-tool[aria-expanded="true"]{border-color:#cdd6c6;background:#e7ede2;color:#4c6249}
+.reader-tool[aria-pressed="false"]{color:#a3a59b}
+.contents-panel{position:fixed;z-index:8;top:76px;right:clamp(16px,5vw,72px);width:min(330px,calc(100vw - 32px));max-height:min(62vh,500px);overflow:auto;padding:16px 14px;border:1px solid #e3e1d9;border-radius:10px;background:#fffefa;box-shadow:0 18px 40px #2a2f2626}
+.contents-head{display:flex;align-items:center;justify-content:space-between;margin:0 4px 8px}
+.contents-head .icon-button{color:#8a8c81;font-size:20px}
+.contents-panel ol{margin:0;padding:0;list-style:none}
+.contents-panel li button{width:100%;padding:9px 8px;border:0;border-radius:6px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;background:transparent;color:#4a4d45;font-family:var(--serif);font-size:13px;text-align:left;cursor:pointer}
+.contents-panel li button:hover{background:#f2f1ea}
+.contents-panel li button.current{background:#e9eee5;color:#3f563d}
+.contents-panel li small{flex:0 0 auto;color:#a0a196;font-family:var(--sans);font-size:10px}
+
+/* Book typography */
+.page-copy{white-space:normal}
+.page-copy p{margin:0 0 .85em;white-space:pre-wrap}
+.page-copy p:last-child{margin-bottom:0}
+.page-chapter{margin:.2em 0 1.1em;padding-bottom:.55em;border-bottom:1px solid #e7e1d2;color:#3d3f37;font-family:var(--serif);font-size:1.45em;font-weight:500;line-height:1.25;letter-spacing:-.01em;text-align:center;text-wrap:balance}
+.page-copy .drop-cap::first-letter{float:left;margin:.08em .1em 0 0;color:var(--green);font-family:var(--serif);font-size:3.3em;font-weight:600;line-height:.82}
+.page-copy .page-break-mark{margin:1em 0;color:#b4ab95;text-align:center;letter-spacing:.4em}
+
+/* The 3D book */
+.book-spread{transform:rotateX(calc(1deg + var(--tilt-y,0deg))) rotateY(var(--tilt-x,0deg));transition:transform .5s cubic-bezier(.2,.7,.3,1)}
+.book-spread>.left-page,.book-spread>.right-page{cursor:pointer}
+.book-spread>.blank-page{cursor:default}
+.page-stack{position:absolute;top:4px;bottom:4px;background:repeating-linear-gradient(90deg,#f8f3e6 0 1px,#dcd3bf 1px 2px);box-shadow:0 3px 5px #3a35260f;pointer-events:none;transition:width .4s}
+.stack-left{right:100%;width:var(--stack-left,4px);border-radius:3px 0 0 3px}
+.stack-right{left:100%;width:var(--stack-right,4px);border-radius:0 3px 3px 0}
+.book-spread>.right-page:not(.blank-page)::after{position:absolute;right:0;bottom:0;width:0;height:0;border-radius:6px 0 4px 0;background:linear-gradient(315deg,#e7e1d1 0 47%,#2e2a1f1f 50%,#fffdf700 56%);content:"";transition:width .22s,height .22s}
+.book-spread>.right-page:not(.blank-page):hover::after{width:30px;height:30px}
+
+.page-leaf{position:absolute;z-index:4;top:0;bottom:0;width:50%;transform-style:preserve-3d;pointer-events:none}
+.leaf-forward{left:50%;transform-origin:left center;animation:leaf-forward .7s cubic-bezier(.42,.08,.32,1) forwards}
+.leaf-backward{left:0;transform-origin:right center;animation:leaf-backward .7s cubic-bezier(.42,.08,.32,1) forwards}
+.page-leaf>.reader-page{position:absolute;inset:0;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.page-leaf>.leaf-back{transform:rotateY(180deg)}
+.page-leaf>.reader-page::after{position:absolute;inset:0;content:"";pointer-events:none;animation:leaf-shade .7s ease-in-out forwards}
+.leaf-forward>.leaf-front::after,.leaf-backward>.leaf-back::after{background:linear-gradient(90deg,#3b352614,#3b352638)}
+.leaf-forward>.leaf-back::after,.leaf-backward>.leaf-front::after{background:linear-gradient(270deg,#3b352614,#3b352638)}
+.turning-forward>.right-page::before,.turning-backward>.left-page::before{position:absolute;z-index:1;inset:0;content:"";pointer-events:none;animation:under-shade .7s ease-out forwards}
+.turning-forward>.right-page::before{background:linear-gradient(90deg,#29261c40,#29261c00 70%)}
+.turning-backward>.left-page::before{background:linear-gradient(270deg,#29261c40,#29261c00 70%)}
+@keyframes leaf-forward{0%{transform:translateZ(1px) rotateY(0)}100%{transform:translateZ(1px) rotateY(-180deg)}}
+@keyframes leaf-backward{0%{transform:translateZ(1px) rotateY(0)}100%{transform:translateZ(1px) rotateY(180deg)}}
+@keyframes leaf-shade{0%{opacity:0}50%{opacity:1}100%{opacity:0}}
+@keyframes under-shade{0%{opacity:1}100%{opacity:0}}
+
+/* Opening the book: the cover swings open on its spine */
+.cover-flap{position:absolute;z-index:6;top:-5px;bottom:-5px;left:50%;width:calc(50% + 6px);display:none;transform-origin:left center;transform-style:preserve-3d;pointer-events:none}
+.book-spread.opening .cover-flap{display:block;animation:cover-open 1.2s cubic-bezier(.55,.05,.25,1) .25s both}
+.book-spread.opening>.left-page,.book-spread.opening>.stack-left{animation:left-reveal 1.45s ease-out both}
+/* Fades live on the outer object and on single faces: opacity on a 3D container would flatten it. */
+.book-object.arriving{animation:book-arrive .6s cubic-bezier(.2,.7,.3,1) both}
+.book-spread.opening .flap-back{animation:flap-fade 1.2s .25s both}
+.flap-front,.flap-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.flap-front{padding:12%;border-radius:3px 9px 9px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff9ee;text-align:center;background-position:center;background-size:cover;box-shadow:inset 7px 0 12px -5px #0006,inset -3px 0 #0002,0 12px 30px #2a261b33}
+.flap-front:after{position:absolute;inset:14px 12px 14px 18px;border:1px solid #fff7e455;content:""}
+.flap-kicker{font-size:8px;font-weight:600;letter-spacing:.2em}
+.flap-title{margin:16px 0 14px;font-family:var(--serif);font-size:clamp(22px,3.4vw,38px);font-weight:500;line-height:1.15;text-wrap:balance}
+.flap-author{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.flap-ornament{margin-top:18px;font-size:18px}
+.flap-back{border-radius:9px 3px 3px 9px;background:linear-gradient(90deg,#e9dfca,#efe7d6 85%,#d9cdb3);transform:rotateY(180deg)}
+@keyframes cover-open{0%{transform:translateZ(2px) rotateY(0)}100%{transform:translateZ(2px) rotateY(-178deg)}}
+@keyframes flap-fade{0%,78%{opacity:1}100%{opacity:0}}
+@keyframes left-reveal{0%,30%{opacity:0}75%,100%{opacity:1}}
+@keyframes book-arrive{0%{opacity:0;transform:translateY(18px) scale(.95)}100%{opacity:1;transform:none}}
+
+@media(max-width:760px){
+  .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .admin-stat{padding:11px 12px}
+  .admin-stat strong{font-size:24px}
+  .user-row{grid-template-columns:36px minmax(0,1fr) auto;gap:6px 12px}
+  .user-stats{grid-column:2 / -1}
+  .user-actions{grid-column:2 / -1;justify-content:flex-start}
+  .reader-tools{gap:0}
+  #reader-close-label{display:none}
+  .reader-close{min-width:30px;min-height:30px}
+  .reader-tool,.reader-tool.reader-menu{width:30px;height:30px;font-size:13px}
+  .contents-panel{top:66px}
+  .page-chapter{font-size:1.25em}
+}
+@media(prefers-reduced-motion:reduce){
+  .book-spread{transition:none}
+  .page-stack{transition:none}
+}
