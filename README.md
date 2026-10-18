@@ -1,6 +1,8 @@
 # Shelfspace
 
-**Live demo:** _coming soon_
+**Live site:** [shelfspace-u4i2.onrender.com](https://shelfspace-u4i2.onrender.com)
+
+> Hosted on Render's free plan: the first visit after a quiet spell can take up to a minute to wake up, and the demo library resets when the service restarts.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/digvijay165/Shelfspace)
 
