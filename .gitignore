@@ -7,3 +7,4 @@ admin-email.txt
 node_modules/
 .env
 .claude/
+demo-data.json

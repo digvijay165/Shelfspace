@@ -31,6 +31,16 @@ function readStore() {
 }
 
 let store = readStore();
+// Hosted demos start with a few published sample books so the community shelf is never empty.
+if (process.env.DEMO_SEED === '1' && store.books.length === 0) {
+  const now = Date.now();
+  store.books = require('./demo/books.js').map((book, index) => ({
+    id: crypto.randomUUID(), userId: '', title: book.title, author: book.author, content: book.content,
+    coverTheme: book.coverTheme, coverImage: '', sourceName: '', progress: 0, status: 'published',
+    uploader: { name: 'Shelfspace', email: '' }, reviewNote: '',
+    createdAt: new Date(now - index * 60_000).toISOString(), reviewedAt: new Date(now).toISOString()
+  }));
+}
 function saveStore() {
   const temp = `${DATA_FILE}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(store, null, 2), 'utf8');
@@ -113,7 +123,7 @@ function safeAdminBook(book, includeContent = false) {
     coverImage: book.coverImage || '', sourceName: book.sourceName || '', status: book.status || 'pending',
     createdAt: book.createdAt, reviewedAt: book.reviewedAt || '', reviewNote: book.reviewNote || '', uploader,
     reviewer: book.reviewedBy ? (store.users.find(item => item.id === book.reviewedBy)?.name || '') : '',
-    wordCount: wordCount(book.content), contentPreview: String(book.content || '').slice(0, 700)
+    wordCount: wordCount(book.content), contentPreview: String(book.content || '').replace(/^#{1,6}\s+/gm, '').replace(/(\*\*|__)(.+?)\1/g, '$2').slice(0, 700)
   };
   if (includeContent) result.content = book.content;
   return result;

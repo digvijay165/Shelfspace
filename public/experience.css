@@ -1,3 +1,6 @@
+/* The compact top bar is for phones only; the sidebar covers wider screens. */
+.mobile-topbar{display:none}
+
 /* Admin: sidebar badge, overview, search, review notes, readers */
 .nav-badge{min-width:18px;height:18px;margin-left:auto;padding:0 5px;border-radius:20px;display:inline-grid;place-items:center;background:#c58653;color:#fff;font-size:9px;font-weight:700}
 .admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 22px}
@@ -109,6 +112,7 @@
 @keyframes book-arrive{0%{opacity:0;transform:translateY(18px) scale(.95)}100%{opacity:1;transform:none}}
 
 @media(max-width:760px){
+  .mobile-topbar{display:flex}
   .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .admin-stat{padding:11px 12px}
   .admin-stat strong{font-size:24px}

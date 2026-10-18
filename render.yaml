@@ -15,3 +15,5 @@ services:
         value: "20"
       - key: ADMIN_EMAIL
         sync: false
+      - key: DEMO_SEED
+        value: "1"
