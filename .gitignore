@@ -11,3 +11,6 @@ demo-data.json
 
 # Backups contain password hashes
 backups/
+.env.local
+.env.*.local
+.neon
