@@ -3,7 +3,7 @@ services:
     name: shelfspace
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci --omit=dev
     startCommand: node server.js
     healthCheckPath: /healthz
     envVars:
@@ -13,7 +13,15 @@ services:
         value: "1"
       - key: NODE_VERSION
         value: "20"
-      - key: ADMIN_EMAIL
-        sync: false
       - key: DEMO_SEED
         value: "1"
+      - key: ADMIN_EMAIL
+        sync: false
+      # Postgres connection string. Without it, data lives on Render's disk and is wiped on restart.
+      - key: DATABASE_URL
+        sync: false
+      # Optional: https://resend.com API key for verification and password reset emails.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false

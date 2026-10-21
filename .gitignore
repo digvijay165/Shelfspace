@@ -8,3 +8,9 @@ node_modules/
 .env
 .claude/
 demo-data.json
+
+# Backups contain password hashes
+backups/
+.env.local
+.env.*.local
+.neon
