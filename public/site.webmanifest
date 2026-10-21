@@ -1,0 +1,10 @@
+{
+  "name": "Shelfspace",
+  "short_name": "Shelfspace",
+  "description": "A quiet home for your books, with a 3D page-turning reader.",
+  "start_url": "/library",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#536b52",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

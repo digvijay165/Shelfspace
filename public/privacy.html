@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f5f0">
+  <title>Privacy policy · Shelfspace</title>
+  <meta name="description" content="What Shelfspace collects, why, who can see it, how long it is kept, and how to download or delete your data.">
+  <link rel="canonical" href="{{APP_URL}}/privacy">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Playfair+Display:ital,wght@0,500;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/pages.css">
+  <script src="/monitor.js"></script>
+  <script src="/page.js" defer></script>
+</head>
+<body data-page="/privacy">
+  <header class="page-header">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">S</span>Shelfspace</a>
+    <a class="header-link" href="/library">My library</a>
+  </header>
+  <main class="page">
+    <span class="eyebrow">Your data</span>
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated 21 October 2026</p>
+
+    <div class="summary">
+      <p><strong>The short version:</strong></p>
+      <ul>
+        <li>We only collect what Shelfspace needs to run: your account, the books you add and your reading progress.</li>
+        <li>No advertising, no selling data, no third-party trackers, no tracking cookies.</li>
+        <li>Editors can read the books you upload, because every upload is reviewed before it can be published.</li>
+        <li>You can download everything or delete your account at any time from <a href="/account">Account settings</a>.</li>
+      </ul>
+    </div>
+
+    <h2>Who we are</h2>
+    <p>Shelfspace is an open-source reading app. "We" means the people who run this copy of Shelfspace at <a href="{{APP_URL}}">{{APP_URL}}</a>. You can reach us through <a href="{{CONTACT_URL}}">this contact page</a>.</p>
+
+    <h2>What we collect</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Information</th><th scope="col">Why</th></tr></thead>
+      <tbody>
+        <tr><td>Your name and email address</td><td>To create your account, sign you in, show your name in the app, and send account emails (confirming your address, resetting your password).</td></tr>
+        <tr><td>Your password</td><td>To sign you in. We never store the password itself, only a salted, one-way hash (PBKDF2 with 210,000 rounds).</td></tr>
+        <tr><td>Books you add: text, title, author, cover image and file name</td><td>To show the book on your shelf, in the reader and, if an editor approves it, on the community shelf.</td></tr>
+        <tr><td>Reading progress, review status and editor notes</td><td>So you can pick up where you left off and see whether a book was published.</td></tr>
+        <tr><td>A sign-in cookie (<code>shelfspace_session</code>)</td><td>To keep you signed in for up to 30 days. It is essential for the app to work, so it does not need consent. We store only a hash of it.</td></tr>
+        <tr><td>Page view counts</td><td>To understand which pages are used. We count the page address and the date, nothing else: no IP address, no cookie, no device ID. If your browser sends Do Not Track or Global Privacy Control, no page views are counted at all.</td></tr>
+        <tr><td>Error reports</td><td>If something breaks, the browser sends the error message, the code location and the page address so we can fix it. They contain no account details and are deleted after the most recent 200.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Your browser also keeps a few preferences in its own local storage (text size, page sounds, and whether you have opened a book yet). They never leave your device.</p>
+    <p>To protect accounts from password guessing and spam, the server briefly remembers IP addresses in memory to count attempts. They are never written to the database and are forgotten within an hour.</p>
+
+    <h2>Who can see your information</h2>
+    <ul>
+      <li><strong>You</strong> can see everything in your account.</li>
+      <li><strong>Editors (admins)</strong> can see every uploaded book together with the uploader's name and email, and a list of accounts with names, emails and book counts. They need this to review submissions and keep the shelf free of spam.</li>
+      <li><strong>Everyone</strong> can see published books: their title, author, cover and text. The community shelf does not show who uploaded a book.</li>
+    </ul>
+    <p>We do not sell, rent or share your information for advertising.</p>
+
+    <h2>Services we rely on</h2>
+    <ul>
+      <li><strong>Hosting</strong> (Render, for the public site) runs the server. Like any web host, it may log IP addresses and requests for security and operations.</li>
+      <li><strong>Database hosting</strong>, when configured, stores accounts and books in a managed Postgres database.</li>
+      <li><strong>Email delivery</strong> (Resend), when configured, sends confirmation and password reset emails to your address.</li>
+      <li><strong>Google Fonts</strong> serves the typefaces, so your browser contacts Google's font servers when a page loads.</li>
+    </ul>
+
+    <h2>How long we keep it</h2>
+    <p>We keep your account and books until you delete them. Deleting a book removes it straight away. Deleting your account removes your account, your books (including published ones), your sign-in sessions and any open email links straight away. Copies in database backups are overwritten by the backup provider's normal schedule, usually within 30 days. Password reset links expire after one hour and confirmation links after 24 hours.</p>
+
+    <h2>Your choices and rights</h2>
+    <ul>
+      <li><strong>See and download your data:</strong> use "Download my data" in <a href="/account">Account settings</a>.</li>
+      <li><strong>Correct it:</strong> change your name in Account settings. To change your email, contact us.</li>
+      <li><strong>Delete it:</strong> use "Delete my account" in Account settings.</li>
+      <li><strong>Sign out everywhere:</strong> available in Account settings if you lose a device.</li>
+    </ul>
+    <p>Depending on where you live (for example in the EU, UK or California), you may have further rights, such as to object to processing or to complain to your data protection authority. Contact us and we will help.</p>
+
+    <h2>Children</h2>
+    <p>Shelfspace is not meant for children under 13, and we do not knowingly collect their information. If you think a child has created an account, contact us and we will delete it.</p>
+
+    <h2>Security</h2>
+    <p>Connections use HTTPS. Passwords, sign-in sessions and email links are stored only as hashes. Database rows are locked with row level security so only the Shelfspace server can read them. No system is perfectly secure, so use a password you do not use anywhere else.</p>
+
+    <h2>Changes</h2>
+    <p>If we change this policy, we will update the date at the top. For significant changes we will let signed-in readers know in the app.</p>
+  </main>
+  <footer class="page-footer"><a href="/">Home</a><a href="/terms">Terms</a><a href="{{CONTACT_URL}}">Contact</a></footer>
+</body>
+</html>

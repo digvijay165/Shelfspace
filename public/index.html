@@ -2,23 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f7f5f0">
-  <meta name="description" content="A quiet home for your books, with a little depth.">
   <title>Shelfspace — your books, beautifully read</title>
+  <meta name="description" content="Shelfspace is a free, quiet home for your books. Upload a text or Markdown file, give it a cover, and read it in a 3D page-turning reader. Share favorites on the community shelf.">
+  <link rel="canonical" href="{{APP_URL}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Shelfspace">
+  <meta property="og:title" content="Shelfspace — your books, beautifully read">
+  <meta property="og:description" content="Upload a text file, give it a cover, and read it in a cozy 3D page-turning reader.">
+  <meta property="og:url" content="{{APP_URL}}/">
+  <meta property="og:image" content="{{APP_URL}}/social-preview.png">
+  <meta property="og:image:alt" content="Shelfspace: an open book in a 3D reader beside a shelf of colorful covers">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/moderation.css">
   <link rel="stylesheet" href="/experience.css">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/monitor.js"></script>
   <script src="/sound.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="boot-screen" class="boot-screen" role="status" aria-label="Loading Shelfspace"><span class="brand-mark">S</span><span class="boot-bar"></span></div>
+  <noscript><p class="noscript">Shelfspace needs JavaScript to show your library and the reader. Please turn it on and reload the page.</p></noscript>
 
-  <section id="auth-view" class="auth-layout">
+  <section id="auth-view" class="auth-layout" hidden>
     <div class="auth-art">
       <div class="auth-brand"><span class="brand-mark">S</span><span>Shelfspace</span></div>
       <div class="auth-hero-copy">
@@ -35,59 +51,89 @@
     </div>
     <div class="auth-panel">
       <div class="auth-mobile-brand"><span class="brand-mark">S</span><span>Shelfspace</span></div>
-      <div class="auth-box">
+      <main class="auth-box" id="main-content">
         <span class="eyebrow" id="auth-eyebrow">WELCOME BACK</span>
         <h2 id="auth-heading">Pick up where<br>you left off.</h2>
         <p class="auth-intro" id="auth-intro">Sign in to find your next favorite page.</p>
-        <div class="auth-tabs" role="tablist" aria-label="Account access">
+        <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Account access">
           <button class="auth-tab active" type="button" data-auth-mode="login" role="tab" aria-selected="true">Sign in</button>
           <button class="auth-tab" type="button" data-auth-mode="register" role="tab" aria-selected="false">Create account</button>
         </div>
-        <form id="auth-form">
+        <form id="auth-form" novalidate>
           <label class="field" id="name-field" hidden><span>Your name</span><input name="name" autocomplete="name" placeholder="e.g. Alex Morgan" maxlength="60"></label>
-          <label class="field"><span>Email address</span><input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
-          <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" required></label>
-          <p id="auth-error" class="form-error" aria-live="polite"></p>
+          <label class="field"><span>Email address</span><input name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" maxlength="254" required></label>
+          <label class="field"><span>Password</span><span class="password-wrap"><input name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" minlength="8" maxlength="128" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button></span></label>
+          <p class="field-hint" id="password-hint" hidden>Use 8 or more characters. A short phrase is easy to remember and hard to guess.</p>
+          <div class="hp-field" aria-hidden="true"><label>Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+          <div class="auth-row" id="forgot-row"><a href="/forgot-password" class="quiet-link" data-link>Forgot your password?</a></div>
+          <p id="auth-error" class="form-error" role="alert"></p>
           <button class="button button-primary button-wide" type="submit"><span id="auth-submit-label">Sign in</span><span aria-hidden="true">→</span></button>
+          <p class="consent-note" id="consent-note" hidden>By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
         </form>
-        <p class="auth-footnote">Your library is private to your account on this device.</p>
-        <button id="explore-public" class="public-link" type="button">Explore the community shelf <span>→</span></button>
-      </div>
+        <form id="forgot-form" novalidate hidden>
+          <label class="field"><span>Email address</span><input name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" maxlength="254" required></label>
+          <p id="forgot-error" class="form-error" role="alert"></p>
+          <button class="button button-primary button-wide" type="submit"><span>Email me a reset link</span><span aria-hidden="true">→</span></button>
+          <div id="forgot-sent" class="form-success" role="status" hidden><strong>Check your inbox.</strong> If an account uses that address, a reset link is on its way. It works for one hour.</div>
+          <a href="/login" class="quiet-link back-to-login" data-link>← Back to sign in</a>
+        </form>
+        <form id="reset-form" novalidate hidden>
+          <label class="field"><span>New password</span><span class="password-wrap"><input name="password" type="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" maxlength="128" data-rule="newPassword" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button></span></label>
+          <label class="field"><span>Confirm new password</span><input name="confirm" type="password" autocomplete="new-password" placeholder="Type it once more" maxlength="128" required></label>
+          <p id="reset-error" class="form-error" role="alert"></p>
+          <button class="button button-primary button-wide" type="submit"><span>Save new password</span><span aria-hidden="true">→</span></button>
+          <a href="/forgot-password" class="quiet-link back-to-login" data-link>Need a new link?</a>
+        </form>
+        <p class="auth-footnote" id="auth-footnote">Your reading progress is private to your account. Books you add are reviewed by an editor before they can appear on the community shelf.</p>
+        <a href="/community" id="explore-public" class="public-link" data-link>Explore the community shelf <span aria-hidden="true">→</span></a>
+        <nav class="legal-links" aria-label="Legal"><a href="/privacy">Privacy</a><span aria-hidden="true">·</span><a href="/terms">Terms</a></nav>
+      </main>
     </div>
   </section>
 
   <div id="workspace" class="workspace" hidden>
     <aside class="sidebar">
-      <a class="brand" href="#library" aria-label="Shelfspace home"><span class="brand-mark">S</span><span>Shelfspace</span></a>
+      <a class="brand" href="/library" data-link aria-label="Shelfspace, my library"><span class="brand-mark">S</span><span>Shelfspace</span></a>
       <div class="side-label">YOUR SPACE</div>
       <nav class="side-nav" aria-label="Main navigation">
-        <button class="nav-item active" type="button" data-view="library"><span class="nav-icon">▤</span> My library <span class="nav-count" id="nav-count">0</span></button>
-        <button class="nav-item" type="button" data-view="add"><span class="nav-icon">＋</span> Add a book</button>
-        <button class="nav-item" type="button" data-view="community"><span class="nav-icon">⌂</span> Community shelf</button>
-        <button id="admin-nav" class="nav-item admin-nav" type="button" data-view="admin" hidden><span class="nav-icon">◈</span> Review submissions <span class="nav-badge" id="admin-nav-badge" hidden>0</span></button>
+        <button class="nav-item active" type="button" data-view="library"><span class="nav-icon" aria-hidden="true">▤</span> My library <span class="nav-count" id="nav-count">0</span></button>
+        <button class="nav-item" type="button" data-view="add"><span class="nav-icon" aria-hidden="true">＋</span> Add a book</button>
+        <button class="nav-item" type="button" data-view="community"><span class="nav-icon" aria-hidden="true">⌂</span> Community shelf</button>
+        <button id="admin-nav" class="nav-item admin-nav" type="button" data-view="admin" hidden><span class="nav-icon" aria-hidden="true">◈</span> Review submissions <span class="nav-badge" id="admin-nav-badge" hidden>0</span></button>
+        <button class="nav-item" type="button" data-view="account"><span class="nav-icon" aria-hidden="true">◯</span> Account</button>
       </nav>
       <div class="sidebar-note"><div class="note-mark">✳</div><p>Every good story deserves a place on your shelf.</p></div>
-      <div class="profile"><div class="avatar" id="avatar">S</div><div class="profile-copy"><strong id="profile-name">Reader</strong><span id="profile-email">Your account</span></div><button id="signout-button" class="icon-button signout" type="button" aria-label="Sign out" title="Sign out">↗</button></div>
+      <div class="profile"><div class="avatar" id="avatar" aria-hidden="true">S</div><div class="profile-copy"><strong id="profile-name">Reader</strong><span id="profile-email">Your account</span></div><button id="signout-button" class="icon-button signout" type="button" aria-label="Sign out" title="Sign out">↗</button></div>
+      <nav class="sidebar-legal" aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>
     </aside>
 
-    <main class="main-panel">
-      <div class="mobile-topbar"><a class="brand" href="#library"><span class="brand-mark">S</span><span>Shelfspace</span></a><button class="icon-button" type="button" id="mobile-signout" aria-label="Sign out">↗</button></div>
+    <main class="main-panel" id="workspace-main">
+      <div class="mobile-topbar"><a class="brand" href="/library" data-link><span class="brand-mark">S</span><span>Shelfspace</span></a><button class="mobile-signout" type="button" id="mobile-signout">Sign out</button></div>
+      <div id="verify-banner" class="notice-banner" hidden><span class="notice-icon" aria-hidden="true">✉</span><p><strong>Confirm your email to start adding books.</strong> We sent a link to <span id="verify-address"></span>. Reading works right away.</p><button id="resend-verification" class="button button-secondary notice-action" type="button">Send a new link</button></div>
       <section id="library-view" class="content-view">
         <div class="welcome-row"><div><span class="eyebrow" id="today-label">YOUR PERSONAL LIBRARY</span><h1 id="welcome-title">A shelf of your own.</h1><p class="subheading">All your stories, right where you left them.</p></div><button class="button button-primary add-top-button" type="button" data-view="add"><span>＋</span> Add a book</button></div>
+        <section id="onboarding" class="onboarding" aria-labelledby="onboarding-title" hidden>
+          <div class="onboarding-head"><div><span class="eyebrow">GETTING STARTED</span><h2 id="onboarding-title">Three small steps to a shelf you love.</h2></div><button id="onboarding-dismiss" class="icon-button" type="button" aria-label="Hide getting started">×</button></div>
+          <ol class="onboarding-steps">
+            <li data-step="verify"><span class="step-check" aria-hidden="true"></span><div><strong>Confirm your email</strong><p>It unlocks uploads and lets you reset your password.</p></div><span class="step-state"></span></li>
+            <li data-step="book"><span class="step-check" aria-hidden="true"></span><div><strong>Add your first book</strong><p>Upload a .txt or .md file and choose a cover.</p></div><button class="text-button step-action" type="button" data-view="add">Add a book →</button></li>
+            <li data-step="read"><span class="step-check" aria-hidden="true"></span><div><strong>Turn a page</strong><p>Open any book, then click, swipe or use the arrow keys.</p></div><button class="text-button step-action" type="button" data-view="community">Browse the shelf →</button></li>
+          </ol>
+        </section>
         <div class="library-toolbar"><div class="section-title"><h2>Your collection</h2><span id="book-total">0 books</span></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Find a book..." aria-label="Search your books"><kbd>⌘ K</kbd></label></div>
-        <div id="book-grid" class="book-grid"></div>
-        <div id="empty-state" class="empty-state" hidden><div class="empty-illustration"><div class="empty-book"></div><span>✳</span></div><h2>Your next favorite is waiting.</h2><p>Add a book from a text file and give it a cover to make it yours.</p><button class="button button-primary" type="button" data-view="add">Add your first book <span>→</span></button></div>
+        <div id="book-grid" class="book-grid" aria-live="polite"></div>
+        <div id="empty-state" class="empty-state" hidden><div class="empty-illustration" aria-hidden="true"><div class="empty-book"></div><span>✳</span></div><h2>Your next favorite is waiting.</h2><p>Add a book from a text file and give it a cover to make it yours.</p><button class="button button-primary" type="button" data-view="add">Add your first book <span>→</span></button></div>
         <div id="no-results" class="empty-state compact-empty" hidden><h2>No books found</h2><p>Try another title or author.</p></div>
       </section>
 
       <section id="add-view" class="content-view add-view" hidden>
         <button class="back-link" type="button" data-view="library"><span>←</span> Back to library</button>
         <div class="add-heading"><span class="eyebrow">MAKE IT YOURS</span><h1>Add a book to your shelf.</h1><p>Bring in a text file, then choose the cover it deserves.</p></div>
-        <form id="book-form" class="book-form">
+        <form id="book-form" class="book-form" novalidate>
           <div class="form-main-column">
             <div class="form-card upload-card">
               <div class="form-section-heading"><span class="step-number">01</span><div><h2>Bring your book</h2><p>Upload a plain text or Markdown file.</p></div></div>
-              <label id="drop-zone" class="drop-zone" for="book-file"><input id="book-file" type="file" accept=".txt,.md,text/plain,text/markdown"><span class="upload-icon">↑</span><strong id="upload-title">Drop your file here</strong><span id="upload-hint">or <u>browse your device</u></span><span class="file-types">TXT or MD · up to 2 MB</span></label>
+              <label id="drop-zone" class="drop-zone" for="book-file"><input id="book-file" type="file" accept=".txt,.md,text/plain,text/markdown"><span class="upload-icon" aria-hidden="true">↑</span><strong id="upload-title">Drop your file here</strong><span id="upload-hint">or <u>browse your device</u></span><span class="file-types">TXT or MD · up to 2 MB</span></label>
               <div class="or-divider"><span>OR PASTE TEXT</span></div>
               <label class="field"><span>Book text</span><textarea id="book-content" rows="7" placeholder="Paste a passage or the full text of your book here..."></textarea></label>
               <p class="helper-text">Text is split into pages automatically for the reader.</p>
@@ -100,8 +146,8 @@
           <div class="form-side-column">
             <div class="form-card cover-card">
               <div class="form-section-heading"><span class="step-number">03</span><div><h2>Choose a cover</h2><p>Pick a style, or use your own image.</p></div></div>
-              <div class="cover-preview-wrap"><div id="cover-preview" class="cover-preview theme-midnight"><span class="cover-preview-kicker">A BOOK BY</span><strong id="cover-preview-title">YOUR TITLE</strong><span class="cover-preview-author" id="cover-preview-author">YOUR NAME</span><span class="cover-preview-ornament">✳</span></div></div>
-              <div class="theme-grid" aria-label="Cover styles">
+              <div class="cover-preview-wrap"><div id="cover-preview" class="cover-preview theme-midnight" role="img" aria-label="Preview of your book cover"><span class="cover-preview-kicker">A BOOK BY</span><strong id="cover-preview-title">YOUR TITLE</strong><span class="cover-preview-author" id="cover-preview-author">YOUR NAME</span><span class="cover-preview-ornament">✳</span></div></div>
+              <div class="theme-grid" role="group" aria-label="Cover styles">
                 <button type="button" class="theme-swatch selected theme-midnight" data-theme="midnight" aria-label="Midnight blue cover" title="Midnight"></button>
                 <button type="button" class="theme-swatch theme-terracotta" data-theme="terracotta" aria-label="Terracotta cover" title="Terracotta"></button>
                 <button type="button" class="theme-swatch theme-forest" data-theme="forest" aria-label="Forest green cover" title="Forest"></button>
@@ -109,12 +155,12 @@
                 <button type="button" class="theme-swatch theme-sand" data-theme="sand" aria-label="Sand cover" title="Sand"></button>
                 <button type="button" class="theme-swatch theme-rose" data-theme="rose" aria-label="Rose cover" title="Rose"></button>
               </div>
-              <label class="cover-upload"><span class="cover-upload-icon">▧</span><span><strong>Use your own image</strong><small>PNG, JPG, WebP, GIF · under 1 MB</small></span><input id="cover-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+              <label class="cover-upload"><span class="cover-upload-icon" aria-hidden="true">▧</span><span><strong>Use your own image</strong><small>PNG, JPG, WebP, GIF · under 1 MB</small></span><input id="cover-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
               <button class="text-button" id="remove-cover" type="button" hidden>Remove uploaded image</button>
             </div>
-            <p class="privacy-note"><span>◉</span> Your books are only visible to you.</p>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> An editor reviews every upload and may publish it on the community shelf. Only add books you have the right to share.</p>
             <p id="book-error" class="form-error" aria-live="polite"></p>
-            <button class="button button-primary button-wide save-book-button" type="submit"><span>Add to my library</span><span>→</span></button>
+            <button class="button button-primary button-wide save-book-button" type="submit"><span>Add to my library</span><span aria-hidden="true">→</span></button>
           </div>
         </form>
       </section>
@@ -128,20 +174,71 @@
           <div class="admin-stat"><span>Declined</span><strong id="stat-rejected">0</strong><small>not published</small></div>
           <div class="admin-stat"><span>Readers</span><strong id="stat-readers">0</strong><small id="stat-words">0 words shared</small></div>
         </div>
-        <div class="admin-toolbar"><div class="admin-tabs" role="tablist" aria-label="Submission status"><button class="admin-tab active" type="button" data-admin-status="pending" role="tab" aria-selected="true">Needs review <span id="pending-count">0</span></button><button class="admin-tab" type="button" data-admin-status="published" role="tab" aria-selected="false">Published <span id="published-count">0</span></button><button class="admin-tab" type="button" data-admin-status="rejected" role="tab" aria-selected="false">Declined <span id="rejected-count">0</span></button><button class="admin-tab" type="button" data-admin-status="users" role="tab" aria-selected="false">Readers <span id="users-count">0</span></button></div><div class="admin-toolbar-actions"><button id="export-data" class="export-data" type="button"><span>↓</span> Export all data</button><button id="refresh-admin" class="icon-button refresh-admin" type="button" aria-label="Refresh submissions" title="Refresh">↻</button></div></div>
+        <div class="admin-toolbar"><div class="admin-tabs" role="tablist" aria-label="Submission status"><button class="admin-tab active" type="button" data-admin-status="pending" role="tab" aria-selected="true">Needs review <span id="pending-count">0</span></button><button class="admin-tab" type="button" data-admin-status="published" role="tab" aria-selected="false">Published <span id="published-count">0</span></button><button class="admin-tab" type="button" data-admin-status="rejected" role="tab" aria-selected="false">Declined <span id="rejected-count">0</span></button><button class="admin-tab" type="button" data-admin-status="users" role="tab" aria-selected="false">Readers <span id="users-count">0</span></button><button class="admin-tab" type="button" data-admin-status="insights" role="tab" aria-selected="false">Insights</button></div><div class="admin-toolbar-actions"><button id="export-data" class="export-data" type="button"><span>↓</span> Export all data</button><button id="refresh-admin" class="icon-button refresh-admin" type="button" aria-label="Refresh submissions" title="Refresh">↻</button></div></div>
         <label class="admin-search"><span aria-hidden="true">⌕</span><input id="admin-search" type="search" placeholder="Search by title, author or uploader..." aria-label="Search submissions"></label>
         <div id="admin-book-list" class="admin-book-list"></div>
         <div id="admin-user-list" class="admin-user-list" hidden></div>
+        <div id="admin-insights" class="admin-insights" hidden>
+          <div class="insight-card insight-wide"><div class="insight-head"><h2>Page views</h2><span>Last 30 days · no cookies, no personal data</span></div><strong id="insight-total" class="insight-total">0</strong><div id="insight-chart" class="insight-chart" role="img" aria-label="Daily page views for the last 30 days"></div></div>
+          <div class="insight-card"><div class="insight-head"><h2>Most visited</h2></div><ol id="insight-pages" class="insight-pages"></ol></div>
+          <div class="insight-card"><div class="insight-head"><h2>Site status</h2></div><dl id="insight-status" class="insight-status"></dl></div>
+          <div class="insight-card insight-wide"><div class="insight-head"><h2>Recent errors</h2><button id="clear-errors" class="text-button" type="button">Clear all</button></div><ul id="insight-errors" class="insight-errors"></ul></div>
+        </div>
         <div id="admin-empty" class="admin-empty" hidden><span>✳</span><h2>All caught up.</h2><p>New book submissions will appear here for review.</p></div>
-        <p id="admin-error" class="form-error" aria-live="polite"></p>
+        <p id="admin-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="account-view" class="content-view account-view" hidden>
+        <button class="back-link" type="button" data-view="library"><span aria-hidden="true">←</span> Back to library</button>
+        <div class="add-heading"><span class="eyebrow">YOUR ACCOUNT</span><h1>Account settings.</h1><p>Update your details, change your password, or take your data with you.</p></div>
+        <div class="account-grid">
+          <form id="profile-form" class="form-card account-card" novalidate>
+            <h2>Profile</h2>
+            <label class="field"><span>Your name</span><input name="name" maxlength="60" autocomplete="name" required></label>
+            <label class="field"><span>Email address</span><input id="account-email" type="email" readonly aria-describedby="account-verified"></label>
+            <p class="account-meta" id="account-verified"></p>
+            <p id="profile-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Save changes</button>
+          </form>
+          <form id="password-form" class="form-card account-card" novalidate>
+            <h2>Password</h2>
+            <label class="field"><span>Current password</span><input name="currentPassword" type="password" autocomplete="current-password" maxlength="128" required></label>
+            <label class="field"><span>New password</span><span class="password-wrap"><input name="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="At least 8 characters" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button></span></label>
+            <p class="account-meta">Changing your password signs you out on your other devices.</p>
+            <p id="password-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Update password</button>
+          </form>
+          <div class="form-card account-card">
+            <h2>Sessions and data</h2>
+            <p class="account-copy">Signed in on a shared or lost device? Sign out everywhere at once. You can also download a copy of your account and every book you have added.</p>
+            <div class="account-actions">
+              <button id="signout-everywhere" class="button button-secondary" type="button">Sign out of all devices</button>
+              <button id="export-account" class="button button-secondary" type="button">Download my data</button>
+            </div>
+          </div>
+          <form id="delete-form" class="form-card account-card danger-card" novalidate>
+            <h2>Delete account</h2>
+            <p class="account-copy">This permanently removes your account, your reading progress and every book you uploaded, including any on the community shelf. It cannot be undone.</p>
+            <label class="field"><span>Enter your password to confirm</span><input name="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+            <p id="delete-error" class="form-error" role="alert"></p>
+            <button class="button button-danger" type="submit">Delete my account</button>
+          </form>
+        </div>
       </section>
     </main>
+    <nav class="mobile-nav" aria-label="Main navigation">
+      <button class="mobile-nav-item" type="button" data-view="library"><span aria-hidden="true">▤</span>Library</button>
+      <button class="mobile-nav-item" type="button" data-view="add"><span aria-hidden="true">＋</span>Add</button>
+      <button class="mobile-nav-item" type="button" data-view="community"><span aria-hidden="true">⌂</span>Shelf</button>
+      <button class="mobile-nav-item" type="button" data-view="admin" id="mobile-admin-nav" hidden><span aria-hidden="true">◈</span>Review</button>
+      <button class="mobile-nav-item" type="button" data-view="account"><span aria-hidden="true">◯</span>Account</button>
+    </nav>
   </div>
 
   <section id="public-view" class="public-page" hidden>
-    <header class="public-header"><a class="brand" href="#community" aria-label="Shelfspace community"><span class="brand-mark">S</span><span>Shelfspace</span></a><span class="public-header-caption">THE COMMUNITY SHELF</span><button id="public-return" class="public-return" type="button">Sign in <span>→</span></button></header>
-    <main class="public-main"><div class="public-intro"><span class="eyebrow">STORIES, SHARED</span><h1>A shelf for everyone.</h1><p>Books readers have chosen to share with the community.</p></div><div class="public-collection-heading"><h2>Published books</h2><span id="public-book-total">0 books</span></div><div id="public-book-grid" class="public-book-grid"></div><div id="public-empty" class="public-empty" hidden><span>✳</span><h2>The shelf is still being filled.</h2><p>Check back soon for stories shared by Shelfspace readers.</p></div></main>
-    <footer class="public-footer">A good story is even better when it finds its reader.</footer>
+    <header class="public-header"><a class="brand" href="/" data-link aria-label="Shelfspace home"><span class="brand-mark">S</span><span>Shelfspace</span></a><span class="public-header-caption">THE COMMUNITY SHELF</span><button id="public-return" class="public-return" type="button">Sign in <span aria-hidden="true">→</span></button></header>
+    <main class="public-main" id="public-main"><div class="public-intro"><span class="eyebrow">STORIES, SHARED</span><h1>A shelf for everyone.</h1><p>Books readers have chosen to share with the community.</p></div><div class="public-collection-heading"><h2>Published books</h2><span id="public-book-total">0 books</span></div><div id="public-book-grid" class="public-book-grid" aria-live="polite"></div><div id="public-empty" class="public-empty" hidden><span>✳</span><h2>The shelf is still being filled.</h2><p>Check back soon for stories shared by Shelfspace readers.</p></div></main>
+    <footer class="public-footer"><span>A good story is even better when it finds its reader.</span><nav class="legal-links" aria-label="Legal"><a href="/privacy">Privacy</a><span aria-hidden="true">·</span><a href="/terms">Terms</a></nav></footer>
   </section>
 
   <section id="reader" class="reader-overlay" hidden aria-label="Book reader">

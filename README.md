@@ -22,7 +22,7 @@
 
 **Shelfspace** turns plain `.txt` and `.md` files into a cozy, dimensional reading experience. Upload a book, give it a cover, and read it in a two-page 3D book that turns real pages, with soft paper sounds if you like. Books stay private until an admin approves them for the public **Community shelf**.
 
-It is a single small Node.js server with **no npm dependencies**: no framework, no database and no build step.
+It is a single small Node.js server with one dependency (the Postgres driver): no framework and no build step. It runs on a local JSON file out of the box, or on Postgres when you set `DATABASE_URL`.
 
 <p align="center">
   <img src="docs/page-turn.gif" alt="A page turning in the Shelfspace 3D reader" width="720">
@@ -76,7 +76,52 @@ It is a single small Node.js server with **no npm dependencies**: no framework, 
 </tr>
 </table>
 
-Also included: accounts with salted PBKDF2 passwords, reading progress that saves as you go, six cover styles or your own image, library search (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd>), swipe on touch screens, and reduced-motion support.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🔐 Real accounts
+- Sign up, sign in, sign out, and **sign out of all devices**
+- **Password reset** and **email verification** by email link
+- Sessions survive restarts, expire after 30 days, and are stored only as hashes
+- Change your name or password, **download your data**, or **delete your account**
+- A short **getting started** checklist for new readers
+
+</td>
+<td width="50%" valign="top">
+
+### 🧯 Safe by default
+- **Rate limits** on sign-in, sign-up, resets and uploads, plus a short lockout after repeated wrong passwords
+- **Spam protection**: a hidden honeypot field, verified email before uploading, and a cap of 5 books waiting for review
+- Strict **Content Security Policy**, HSTS, same-origin checks on every change
+- **Row level security** on every Postgres table
+- No API keys or secrets ever reach the browser
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 📊 Built-in insights
+- **Cookieless analytics**: page view counts per day, no IPs, Do Not Track honored
+- **Error tracking** for browser and server errors, right in the admin dashboard
+- Site status at a glance (storage, email)
+
+</td>
+<td width="50%" valign="top">
+
+### 🌐 A proper website
+- Real URLs (`/library`, `/community`, `/account`...) with **page titles**
+- **Meta descriptions**, Open Graph cards, canonical links, `robots.txt` and `sitemap.xml`
+- A custom **404 page**, a **privacy policy** and **terms of use**
+- Loading skeletons, clear error messages and inline form validation
+- A bottom navigation bar on phones
+
+</td>
+</tr>
+</table>
+
+Also included: salted PBKDF2 passwords, reading progress that saves as you go, six cover styles or your own image (with alt text), library search (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd>), swipe on touch screens, and reduced-motion support.
 
 ## 📸 Screenshots
 
@@ -100,15 +145,16 @@ Also included: accounts with salted PBKDF2 passwords, reading progress that save
 
 ## 🚀 Quick start
 
-You need [Node.js](https://nodejs.org) 18 or newer. There is nothing to install.
+You need [Node.js](https://nodejs.org) 18 or newer.
 
 ```bash
 git clone https://github.com/digvijay165/Shelfspace.git
 cd Shelfspace
+npm install
 npm start
 ```
 
-Open **http://127.0.0.1:4173**, create an account and add a `.txt` or `.md` book.
+Open **http://127.0.0.1:4173**, create an account and add a `.txt` or `.md` book. Without email set up, verification and password reset links are printed in the terminal.
 
 **Become the admin locally:** create `admin-email.txt` beside `server.js` containing your email *before* you sign up. The file is git-ignored. Or promote an existing account:
 
@@ -126,14 +172,42 @@ DEMO_SEED=1 DATA_FILE=./demo-data.json npm start
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/digvijay165/Shelfspace)
 
-1. Click **Deploy to Render** and sign in with GitHub.
-2. When asked for `ADMIN_EMAIL`, enter the email you will sign up with. That account becomes the site owner.
-3. When the deploy finishes, open your `onrender.com` link and create your account with that email.
+1. **Create a free Postgres database**, for example on [Neon](https://neon.tech) or [Supabase](https://supabase.com), and copy its connection string (`postgres://...`).
+2. Click **Deploy to Render** and sign in with GitHub.
+3. Fill in `ADMIN_EMAIL` (the email you will sign up with; that account becomes the site owner) and `DATABASE_URL` (the connection string).
+4. Optional but recommended: create a [Resend](https://resend.com) API key and set `RESEND_API_KEY` and `MAIL_FROM` so verification and reset emails are actually sent.
+5. When the deploy finishes, open your `onrender.com` link and create your account with that email.
 
-The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_PROXY`, the `/healthz` health check and the demo shelf).
+The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_PROXY`, the `/healthz` health check and the demo shelf). Tables are created on first start, and an existing `data.json` is imported automatically into an empty database.
+
+> [!IMPORTANT]
+> Without `DATABASE_URL`, data lives on the server's disk, and on Render's free plan that disk is wiped on every restart or redeploy. The admin **Insights** tab warns you when this is the case.
 
 > [!NOTE]
-> On Render's free plan, the server's disk is wiped whenever the service restarts or redeploys, and the service sleeps after 15 minutes idle (the next visit takes about a minute to wake). For a library that lasts, attach a persistent disk and set `DATA_FILE=/var/data/data.json`.
+> Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake.
+
+### 🩺 Health checks
+
+- **`/healthz`** answers `ok` whenever the server process is up. Render uses it to decide whether a deploy succeeded. It deliberately does not touch the database, so a database outage does not put the server into a restart loop.
+- **`/api/health`** checks the database (with a 3 second timeout) and recent saves, and returns JSON:
+
+  ```json
+  { "status": "ok", "version": "1.0.0", "uptimeSeconds": 5021,
+    "checks": { "database": { "kind": "postgres", "status": "ok", "latencyMs": 4 },
+                "writes": { "status": "ok", "pending": 0 }, "email": { "status": "ok" } } }
+  ```
+
+  `status` is `ok`, `degraded` (the last save failed) or `down` (the database is unreachable, HTTP `503`). Point an uptime monitor such as [UptimeRobot](https://uptimerobot.com) at it to get an alert when something breaks; that also keeps a free Render service awake. Results are cached for 5 seconds, and error details, memory use and counts are shown only to admins in **Insights → Site status**.
+
+### 💾 Backups
+
+Neon and Supabase keep automatic point-in-time backups of your database. You can also take your own snapshot at any time; it includes password hashes, so keep it somewhere private:
+
+```bash
+DATABASE_URL=postgres://... npm run backup -- --keep 14
+```
+
+Backups are written to `backups/` (git-ignored). To restore one, run `npm run restore -- backups/<file>.json` to preview, then add `--yes`. Add `--replace` to clear existing data first. Admins can also download a JSON export from the dashboard, and every reader can download their own data from **Account settings**.
 
 ## 🗂️ How publishing works
 
@@ -154,10 +228,18 @@ Only published books are ever served publicly. Every admin endpoint checks the s
 | --- | --- | --- |
 | `PORT` | `4173` | Port to listen on |
 | `HOST` | `127.0.0.1` | Interface to bind; use `0.0.0.0` on a host |
-| `DATA_FILE` | `./data.json` | Where accounts and books are stored |
+| `DATABASE_URL` | none | Postgres connection string. When set, everything is stored in Postgres |
+| `DATA_FILE` | `./data.json` | Where data is stored when there is no `DATABASE_URL` |
 | `ADMIN_EMAIL` | contents of `admin-email.txt` | The site owner's email, who always has admin access |
-| `TRUST_PROXY` | off | Set to `1` behind an HTTPS proxy so cookies are marked `Secure` |
+| `APP_URL` | `RENDER_EXTERNAL_URL`, else localhost | Public address used in email links, canonical links and the sitemap |
+| `RESEND_API_KEY` | none | Sends verification and reset emails through Resend. Also turns on "verify before uploading" |
+| `MAIL_FROM` | `Shelfspace <onboarding@resend.dev>` | Sender for account emails (use an address on a domain you verified in Resend) |
+| `CONTACT_URL` | this repo's issues | Where the privacy policy and terms send questions |
+| `TRUST_PROXY` | off | Set to `1` behind an HTTPS proxy so cookies are `Secure` and client IPs are used for rate limits |
 | `DEMO_SEED` | off | Set to `1` to add sample books when the library is empty |
+| `DATABASE_SSL` | on for remote hosts | Set to `0` to connect without TLS, or `1` to force it |
+
+Copy [`.env.example`](.env.example) for a starting point. All of these stay on the server; none are sent to the browser.
 
 ## ⌨️ Reader controls
 
@@ -175,16 +257,28 @@ Only published books are ever served publicly. Every admin endpoint checks the s
 
 ```text
 Shelfspace/
-├── server.js            # HTTP server, JSON API, auth, review workflow
+├── server.js            # HTTP server, JSON API, auth, review workflow, pages
+├── lib/
+│   ├── store.js         # Postgres or JSON file storage, with write-through cache
+│   ├── mailer.js        # Verification and reset emails (Resend)
+│   └── rate-limit.js    # In-memory rate limits and lockouts
 ├── demo/books.js        # Original sample stories for the demo shelf
+├── test/api.test.js     # End-to-end tests: npm test
 ├── public/
 │   ├── index.html       # The single-page app shell
-│   ├── app.js           # Library, admin dashboard, 3D reader, pagination
+│   ├── app.js           # Routing, accounts, library, admin, 3D reader
+│   ├── monitor.js       # Cookieless page views and error reports
+│   ├── privacy.html     # Privacy policy
+│   ├── terms.html       # Terms of use
+│   ├── 404.html         # Page not found
 │   ├── sound.js         # Paper sounds and rain, synthesized with Web Audio
 │   ├── styles.css       # Core look and layout
 │   ├── moderation.css   # Admin and community shelf styles
-│   └── experience.css   # 3D book, page turns, reader tools, dashboard
+│   ├── experience.css   # 3D book, page turns, reader tools, dashboard
+│   └── account.css      # Accounts, onboarding, insights, mobile navigation
 ├── scripts/
+│   ├── backup.js        # npm run backup
+│   ├── restore.js       # npm run restore
 │   └── screenshots.js   # Regenerates docs/screenshots with headless Chrome
 ├── docs/                # Banner, logo, screenshots and the page-turn GIF
 └── render.yaml          # One-click Render blueprint
@@ -196,7 +290,16 @@ Shelfspace/
 | Method | Path | Who | Purpose |
 | --- | --- | --- | --- |
 | `POST` | `/api/register`, `/api/login`, `/api/logout` | anyone | Accounts and sessions |
+| `POST` | `/api/password/forgot`, `/api/password/reset` | anyone | Email a reset link; set a new password with its token |
+| `GET` | `/verify-email?token=` | anyone | Confirm an email address from the emailed link |
 | `GET` | `/api/me` | anyone | The signed-in user, if any |
+| `POST` | `/api/logout-all`, `/api/email/resend` | reader | Sign out everywhere; send a new confirmation link |
+| `PATCH` `DELETE` | `/api/account` | reader | Rename, or delete the account (needs `password`) |
+| `POST` | `/api/account/password` | reader | Change password (`currentPassword`, `newPassword`) |
+| `GET` | `/api/account/export` | reader | Download your own account and books |
+| `POST` | `/api/analytics`, `/api/client-errors` | anyone | Page view counts and error reports |
+| `GET` | `/healthz` | anyone | Liveness: `ok` while the process is running (used by Render) |
+| `GET` | `/api/health` | anyone | Readiness: checks the database; `503` when it cannot be reached |
 | `GET` | `/api/public/books`, `/api/public/books/:id` | anyone | Published books |
 | `GET` `POST` | `/api/books` | reader | List or upload your books |
 | `GET` `DELETE` | `/api/books/:id` | owner | Read or remove your book |
@@ -208,14 +311,17 @@ Shelfspace/
 | `GET` | `/api/admin/users` | admin | Accounts with upload counts |
 | `PATCH` | `/api/admin/users/:id/role` | admin | Make someone an admin or a reader |
 | `GET` | `/api/admin/export` | admin | Download all data as JSON (no passwords or hashes) |
+| `GET` | `/api/admin/insights`, `DELETE` `/api/admin/errors` | admin | Page views, error reports and site status |
 
 </details>
 
 <details>
 <summary><b>Notes and limits</b></summary>
 
-- Text files can be up to 2 MB; cover images (PNG, JPG, WebP, GIF) up to 1 MB. Both are stored in the JSON data file.
-- Sessions live in memory, so everyone signs in again after a server restart.
+- Text files can be up to 2 MB; cover images (PNG, JPG, WebP, GIF) up to 1 MB. Both are stored with the book.
+- Data is cached in memory and written through to storage, so run a single server instance per database.
+- Rate limit counters live in memory and reset when the server restarts.
+- Run `npm test` for the end-to-end suite; set `TEST_DATABASE_URL` to run it against Postgres.
 - The admin export contains book text, covers, statuses and account names and emails, but never passwords, hashes or session tokens.
 - Google Fonts are optional; the interface falls back to system serif and sans-serif fonts offline.
 - Regenerate the screenshots with `node scripts/screenshots.js`, which needs Chrome or Edge installed.
