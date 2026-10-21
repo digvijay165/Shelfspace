@@ -2,12 +2,18 @@
   "name": "shelfspace-book-reader",
   "version": "1.0.0",
   "private": true,
-  "description": "A private, local book library with a 3D-style reader.",
+  "description": "A book library with a 3D page-turning reader, accounts and admin review.",
   "scripts": {
     "start": "node server.js",
-    "admin:promote": "node server.js promote-admin"
+    "admin:promote": "node server.js promote-admin",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }

@@ -1,4 +1,4 @@
-const state = { user: null, books: [], publicBooks: [], adminBooks: [], adminUsers: [], adminStatus: 'pending', chapters: [], flip: null, authMode: 'login', coverTheme: 'midnight', coverImage: '', sourceName: '', activeBook: null, readerMode: 'private', pages: [], pageIndex: 0, toastTimer: null, textSize: readTextSize() };
+const state = { user: null, books: [], publicBooks: [], adminBooks: [], adminUsers: [], adminStatus: 'pending', chapters: [], flip: null, authMode: 'login', coverTheme: 'midnight', coverImage: '', sourceName: '', activeBook: null, readerMode: 'private', pages: [], pageIndex: 0, toastTimer: null, textSize: readTextSize(), booksLoaded: false, publicLoaded: false, adminLoaded: false, workspaceUser: null, resetToken: '', pageTitle: document.title };
 const TEXT_SIZES = ['small', 'medium', 'large'];
 function readTextSize() {
   try { return localStorage.getItem('shelfspace-text-size') || 'medium'; } catch { return 'medium'; }
@@ -8,11 +8,124 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { credentials: 'same-origin', ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } });
+  let response;
+  try {
+    response = await fetch(url, { credentials: 'same-origin', ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } });
+  } catch {
+    throw new Error('We could not reach Shelfspace. Check your internet connection and try again.');
+  }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+  if (!response.ok) {
+    const fallback = response.status >= 500 ? 'Something went wrong on our side. Please try again in a moment.' : 'Something went wrong. Please try again.';
+    const error = Object.assign(new Error(data.error || fallback), { status: response.status, field: data.field || '' });
+    if (response.status === 401 && state.user) sessionEnded();
+    throw error;
+  }
   return data;
 }
+
+function sessionEnded() {
+  resetSession();
+  notify('Your session has ended. Please sign in again.');
+  navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true });
+}
+
+// Disables a button and shows a spinner while its work runs, so nothing is submitted twice.
+async function busy(button, task) {
+  if (!button) return task();
+  button.disabled = true; button.classList.add('is-busy'); button.setAttribute('aria-busy', 'true');
+  try { return await task(); }
+  finally { button.disabled = false; button.classList.remove('is-busy'); button.removeAttribute('aria-busy'); }
+}
+
+async function downloadFile(url, fallbackName) {
+  const response = await fetch(url, { credentials: 'same-origin' }).catch(() => null);
+  if (!response) throw new Error('We could not reach Shelfspace. Check your internet connection and try again.');
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || 'Could not prepare the download.');
+  }
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || fallbackName;
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = objectUrl; link.download = filename; document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+// ---------- Form validation ----------
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const RULES = {
+  name: value => value.trim() ? '' : 'Add your name so we know what to call you.',
+  email: value => !value.trim() ? 'Enter your email address.' : EMAIL_PATTERN.test(value.trim()) ? '' : 'That email looks incomplete. It should look like you@example.com.',
+  password: value => value ? '' : 'Enter your password.',
+  currentPassword: value => value ? '' : 'Enter your current password.',
+  newPassword: value => {
+    if (!value) return 'Choose a password.';
+    const missing = 8 - value.length;
+    return missing > 0 ? `Add ${missing} more character${missing === 1 ? '' : 's'}. Passwords need at least 8.` : '';
+  }
+};
+
+function setFieldError(input, message) {
+  const field = input.closest('.field');
+  let note = field?.querySelector('.field-error');
+  if (!note && field && message) {
+    note = el('small', 'field-error');
+    note.id = `${input.form?.id || 'form'}-${input.name || input.id}-error`;
+    field.append(note);
+  }
+  input.setAttribute('aria-invalid', String(Boolean(message)));
+  if (note) note.textContent = message;
+  if (note && message) input.setAttribute('aria-describedby', note.id);
+  else if (input.getAttribute('aria-describedby')?.endsWith('-error')) input.removeAttribute('aria-describedby');
+}
+
+// Checks each named input with its rule; focuses the first problem. Returns true when all pass.
+function validate(form, rules) {
+  let first = null;
+  for (const [name, rule] of Object.entries(rules)) {
+    const input = form.elements[name];
+    if (!input) continue;
+    const message = rule(input.value);
+    setFieldError(input, message);
+    if (message && !first) first = input;
+  }
+  first?.focus();
+  return !first;
+}
+
+function clearFormErrors(form) {
+  form.querySelectorAll('[aria-invalid="true"]').forEach(input => setFieldError(input, ''));
+  form.querySelectorAll('.form-error').forEach(node => { node.textContent = ''; });
+}
+
+// Shows a server error next to the field it is about, or in the form's general error line.
+function showFormError(form, error, fieldMap = {}) {
+  const input = error.field && (fieldMap[error.field] || form.elements[error.field]);
+  if (input) { setFieldError(input, error.message); input.focus(); }
+  else form.querySelector('.form-error').textContent = error.message;
+}
+
+// Once a field has been flagged, re-check it as the reader types so the message clears promptly.
+document.addEventListener('input', event => {
+  const input = event.target;
+  if (input.getAttribute?.('aria-invalid') !== 'true') return;
+  const rule = input.dataset.rule ? RULES[input.dataset.rule] : RULES[input.name];
+  setFieldError(input, rule ? rule(input.value) : (input.value.trim() ? '' : input.closest('.field')?.querySelector('.field-error')?.textContent || ''));
+});
+
+document.addEventListener('click', event => {
+  const toggle = event.target.closest('.password-toggle');
+  if (!toggle) return;
+  const input = toggle.previousElementSibling;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  toggle.textContent = showing ? 'Show' : 'Hide';
+  toggle.setAttribute('aria-pressed', String(!showing));
+  toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  input.focus();
+});
 
 function notify(message) {
   const toast = $('#toast');
@@ -24,91 +137,333 @@ function notify(message) {
 
 function escapeClass(value) { return /^[a-z]+$/.test(value) ? value : 'midnight'; }
 
+// ---------- Routing and page titles ----------
+const AUTH_ROUTES = { '/': 'login', '/login': 'login', '/signup': 'register', '/forgot-password': 'forgot', '/reset-password': 'reset' };
+const WORKSPACE_ROUTES = { '/library': 'library', '/add': 'add', '/admin': 'admin', '/account': 'account' };
+const TITLES = {
+  '/': 'Shelfspace — your books, beautifully read',
+  '/login': 'Sign in · Shelfspace',
+  '/signup': 'Create your free account · Shelfspace',
+  '/forgot-password': 'Reset your password · Shelfspace',
+  '/reset-password': 'Choose a new password · Shelfspace',
+  '/library': 'My library · Shelfspace',
+  '/add': 'Add a book · Shelfspace',
+  '/admin': 'Review submissions · Shelfspace',
+  '/account': 'Account settings · Shelfspace',
+  '/community': 'Community shelf: free books to read online · Shelfspace'
+};
+const AUTH_COPY = {
+  login: { eyebrow: 'WELCOME BACK', heading: 'Pick up where<br>you left off.', intro: 'Sign in to find your next favorite page.', submit: 'Sign in' },
+  register: { eyebrow: 'YOUR OWN LITTLE LIBRARY', heading: 'Make room for<br>your next story.', intro: 'Create a free account and start building your shelf.', submit: 'Create my account' },
+  forgot: { eyebrow: 'IT HAPPENS TO EVERYONE', heading: 'Forgot your<br>password?', intro: 'Enter the email you signed up with and we will send you a link to choose a new one.' },
+  reset: { eyebrow: 'ALMOST THERE', heading: 'Choose a new<br>password.', intro: 'Pick something you have not used here before. You will be signed in straight away.' }
+};
+
+function navigate(path, { replace = false } = {}) {
+  if (path !== location.pathname + location.search) history[replace ? 'replaceState' : 'pushState']({}, '', path);
+  route();
+}
+
+function safeNext(value) {
+  return value && WORKSPACE_ROUTES[value] ? value : '/library';
+}
+
+function setPageTitle(title) {
+  document.title = title;
+  state.pageTitle = title;
+}
+
+function route() {
+  const path = location.pathname;
+  const params = new URLSearchParams(location.search);
+  if (!$('#reader').hidden) closeReader();
+  $('#boot-screen').hidden = true;
+
+  if (AUTH_ROUTES[path]) {
+    const mode = AUTH_ROUTES[path];
+    if (state.user && mode !== 'reset') return navigate(safeNext(params.get('next')), { replace: true });
+    if (mode === 'reset' && params.get('token')) {
+      // Keep the token in memory only, so it never lingers in the address bar or browser history.
+      state.resetToken = params.get('token');
+      history.replaceState({}, '', '/reset-password');
+    }
+    showAuth(mode);
+  } else if (path === '/community') {
+    showPublic();
+  } else if (WORKSPACE_ROUTES[path]) {
+    if (!state.user) return navigate(`/login?next=${encodeURIComponent(path)}`, { replace: true });
+    const view = WORKSPACE_ROUTES[path];
+    if (view === 'admin' && state.user.role !== 'admin') { notify('Admin access is required.'); return navigate('/library', { replace: true }); }
+    showWorkspace(view);
+    if (params.get('verified')) {
+      state.user.emailVerified = true;
+      updateUserChrome();
+      notify('Email confirmed. You can add books now.');
+      history.replaceState({}, '', path);
+    } else if (params.get('verify') === 'invalid') {
+      notify('That confirmation link has expired or was already used. Send a new one from the banner.');
+      history.replaceState({}, '', path);
+    }
+  } else {
+    window.location.assign(path);
+    return;
+  }
+  setPageTitle(TITLES[path] || TITLES['/']);
+  window.ShelfMonitor?.pageView(path);
+}
+
 function setAuthMode(mode) {
   state.authMode = mode;
   const isRegister = mode === 'register';
+  const isPasswordForm = mode === 'login' || isRegister;
+  const copy = AUTH_COPY[mode];
   $$('.auth-tab').forEach(tab => {
     const active = tab.dataset.authMode === mode;
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', String(active));
   });
+  $('#auth-tabs').hidden = !isPasswordForm;
+  $('#auth-form').hidden = !isPasswordForm;
+  $('#forgot-form').hidden = mode !== 'forgot';
+  $('#reset-form').hidden = mode !== 'reset';
   $('#name-field').hidden = !isRegister;
   $('#name-field input').required = isRegister;
-  $('#auth-heading').innerHTML = isRegister ? 'Make room for<br>your next story.' : 'Pick up where<br>you left off.';
-  $('#auth-eyebrow').textContent = isRegister ? 'YOUR OWN LITTLE LIBRARY' : 'WELCOME BACK';
-  $('#auth-intro').textContent = isRegister ? 'Create an account and start building your shelf.' : 'Sign in to find your next favorite page.';
-  $('#auth-submit-label').textContent = isRegister ? 'Create my account' : 'Sign in';
-  $('#auth-form [name="password"]').autocomplete = isRegister ? 'new-password' : 'current-password';
-  $('#auth-error').textContent = '';
+  $('#password-hint').hidden = !isRegister;
+  $('#consent-note').hidden = !isRegister;
+  $('#forgot-row').hidden = isRegister;
+  $('#auth-heading').innerHTML = copy.heading;
+  $('#auth-eyebrow').textContent = copy.eyebrow;
+  $('#auth-intro').textContent = copy.intro;
+  if (copy.submit) $('#auth-submit-label').textContent = copy.submit;
+  const password = $('#auth-form [name="password"]');
+  password.autocomplete = isRegister ? 'new-password' : 'current-password';
+  password.dataset.rule = isRegister ? 'newPassword' : 'password';
+  $('#forgot-sent').hidden = true;
+  [$('#auth-form'), $('#forgot-form'), $('#reset-form')].forEach(clearFormErrors);
+  if (mode === 'reset' && !state.resetToken) $('#reset-error').textContent = 'This page needs the link from your reset email. Ask for a new link below.';
 }
 
-function showWorkspace() {
+function resetSession() {
+  state.user = null;
+  state.books = [];
+  state.booksLoaded = false;
+  state.adminBooks = [];
+  state.adminUsers = [];
+  state.adminLoaded = false;
+  state.workspaceUser = null;
+  selectAdminTab('pending');
+  $('#admin-search').value = '';
+  $$('#auth-form, #profile-form, #password-form, #delete-form').forEach(form => { form.reset(); clearFormErrors(form); });
+}
+
+function updateUserChrome() {
+  const user = state.user;
+  if (!user) return;
+  $('#admin-nav').hidden = user.role !== 'admin';
+  $('#mobile-admin-nav').hidden = user.role !== 'admin';
+  $('#profile-name').textContent = user.name;
+  $('#profile-email').textContent = user.email;
+  $('#avatar').textContent = (user.name || 'S').trim().charAt(0).toUpperCase();
+  $('#welcome-title').textContent = `A shelf of your own, ${user.name.split(/\s+/)[0]}.`;
+  const needsVerify = user.verificationRequired && !user.emailVerified;
+  $('#verify-banner').hidden = !needsVerify;
+  $('#verify-address').textContent = user.email;
+  renderOnboarding();
+}
+
+function showWorkspace(view) {
   $('#auth-view').hidden = true;
   $('#public-view').hidden = true;
   $('#workspace').hidden = false;
-  $('#admin-nav').hidden = state.user.role !== 'admin';
-  $('#profile-name').textContent = state.user.name;
-  $('#profile-email').textContent = state.user.email;
-  $('#avatar').textContent = (state.user.name || 'S').trim().charAt(0).toUpperCase();
-  $('#welcome-title').textContent = `A shelf of your own, ${state.user.name.split(/\s+/)[0]}.`;
-  const hours = new Date().getHours();
-  $('#today-label').textContent = hours < 12 ? 'A GOOD MORNING FOR A STORY' : hours < 18 ? 'A LITTLE TIME FOR A STORY' : 'A QUIET EVENING FOR A STORY';
-  $('#library-view').hidden = false;
-  $('#add-view').hidden = true;
-  $('#admin-view').hidden = true;
-  $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === 'library'));
-  loadBooks();
-  refreshAdminBadge();
+  if (state.workspaceUser !== state.user.id) {
+    state.workspaceUser = state.user.id;
+    const hours = new Date().getHours();
+    $('#today-label').textContent = hours < 12 ? 'A GOOD MORNING FOR A STORY' : hours < 18 ? 'A LITTLE TIME FOR A STORY' : 'A QUIET EVENING FOR A STORY';
+    refreshAdminBadge();
+  }
+  updateUserChrome();
+  showSection(view);
 }
 
-function showAuth() {
+function showAuth(mode = 'login') {
   $('#reader').hidden = true;
   $('#public-view').hidden = true;
   $('#workspace').hidden = true;
   $('#auth-view').hidden = false;
   document.body.style.overflow = '';
-  state.user = null;
-  state.books = [];
-  state.adminBooks = [];
-  state.adminUsers = [];
-  selectAdminTab('pending');
-  $('#admin-search').value = '';
-  $('#auth-form').reset();
-  setAuthMode('login');
+  setAuthMode(mode);
 }
 
 function showPublic() {
   $('#auth-view').hidden = true;
   $('#workspace').hidden = true;
   $('#public-view').hidden = false;
-  $('#public-return').innerHTML = state.user ? 'Back to my library <span>→</span>' : 'Sign in <span>→</span>';
+  $('#public-return').innerHTML = state.user ? 'Back to my library <span aria-hidden="true">→</span>' : 'Sign in <span aria-hidden="true">→</span>';
+  window.scrollTo({ top: 0 });
   loadPublicBooks();
 }
 
+// ---------- Onboarding ----------
+function hasOpenedBook() {
+  try { return localStorage.getItem('shelfspace-opened-book') === '1'; } catch { return false; }
+}
+
+function renderOnboarding() {
+  const panel = $('#onboarding');
+  const user = state.user;
+  if (!user || user.onboarded || !state.booksLoaded) { panel.hidden = true; return; }
+  const done = { verify: user.emailVerified, book: state.books.length > 0, read: hasOpenedBook() };
+  const steps = user.verificationRequired ? ['verify', 'book', 'read'] : ['book', 'read'];
+  panel.querySelector('[data-step="verify"]').hidden = !user.verificationRequired;
+  panel.querySelector('[data-step="verify"] .step-state').textContent = done.verify ? 'Done' : 'Check your inbox';
+  for (const step of ['verify', 'book', 'read']) panel.querySelector(`[data-step="${step}"]`).classList.toggle('done', Boolean(done[step]));
+  if (steps.every(step => done[step])) {
+    panel.hidden = true;
+    finishOnboarding();
+    return;
+  }
+  panel.hidden = false;
+}
+
+async function finishOnboarding() {
+  if (!state.user || state.user.onboarded) return;
+  state.user.onboarded = true;
+  try { await api('/api/account/onboarded', { method: 'POST', body: '{}' }); } catch {}
+}
+
+// ---------- Loading and empty states ----------
+function showSkeletons(grid, count, className) {
+  const cards = Array.from({ length: count }, () => {
+    const card = el('div', `skeleton-card ${className}`);
+    card.append(el('span', 'skeleton-cover'), el('span', 'skeleton-line'), el('span', 'skeleton-line short'));
+    return card;
+  });
+  grid.replaceChildren(...cards);
+  grid.hidden = false;
+  grid.setAttribute('aria-busy', 'true');
+}
+
+function showLoadError(grid, message, retry) {
+  const box = el('div', 'load-error');
+  box.setAttribute('role', 'alert');
+  box.append(el('strong', '', 'This shelf did not load.'), el('p', '', message), actionButton('Try again', 'button-secondary', retry));
+  grid.replaceChildren(box);
+  grid.hidden = false;
+  grid.removeAttribute('aria-busy');
+}
+
 async function loadBooks() {
+  if (!state.booksLoaded) {
+    $('#empty-state').hidden = true; $('#no-results').hidden = true;
+    showSkeletons($('#book-grid'), 4, 'book-skeleton');
+  }
   try {
     const { books } = await api('/api/books');
     state.books = books;
+    state.booksLoaded = true;
+    $('#book-grid').removeAttribute('aria-busy');
     renderBooks();
-  } catch (error) { notify(error.message); }
+  } catch (error) {
+    if (state.booksLoaded) notify(error.message);
+    else if (state.user) showLoadError($('#book-grid'), error.message, loadBooks);
+  }
 }
 
 async function loadPublicBooks() {
+  if (!state.publicLoaded) {
+    $('#public-empty').hidden = true;
+    showSkeletons($('#public-book-grid'), 5, 'public-skeleton');
+  }
   try {
     const { books } = await api('/api/public/books');
     state.publicBooks = books;
+    state.publicLoaded = true;
+    $('#public-book-grid').removeAttribute('aria-busy');
     renderPublicBooks();
-  } catch (error) { notify(error.message); }
+  } catch (error) {
+    if (state.publicLoaded) notify(error.message);
+    else showLoadError($('#public-book-grid'), error.message, loadPublicBooks);
+  }
 }
 
 async function loadAdminBooks() {
   $('#admin-error').textContent = '';
+  const refresh = $('#refresh-admin');
+  refresh.classList.add('is-spinning');
+  if (!state.adminLoaded) { $('#admin-empty').hidden = true; showSkeletons($('#admin-book-list'), 2, 'admin-skeleton'); }
   try {
     const [{ books }, { users }] = await Promise.all([api('/api/admin/books?status=all'), api('/api/admin/users')]);
     state.adminBooks = books;
     state.adminUsers = users;
+    state.adminLoaded = true;
+    $('#admin-book-list').removeAttribute('aria-busy');
     renderAdminBooks();
+  } catch (error) {
+    $('#admin-error').textContent = error.message;
+    if (!state.adminLoaded) $('#admin-book-list').replaceChildren();
+  } finally { refresh.classList.remove('is-spinning'); }
+}
+
+async function loadInsights() {
+  const list = $('#insight-errors');
+  if (!state.insights) list.replaceChildren(el('li', 'insight-empty', 'Loading…'));
+  try {
+    state.insights = await api('/api/admin/insights');
+    renderInsights();
   } catch (error) { $('#admin-error').textContent = error.message; }
+}
+
+const PAGE_NAMES = { '/': 'Home', '/login': 'Sign in', '/signup': 'Create account', '/forgot-password': 'Forgot password', '/reset-password': 'Reset password', '/library': 'My library', '/add': 'Add a book', '/community': 'Community shelf', '/admin': 'Review', '/account': 'Account', '/privacy': 'Privacy policy', '/terms': 'Terms', '/404': 'Page not found' };
+
+function renderInsights() {
+  const data = state.insights;
+  if (!data) return;
+  const total = data.perDay.reduce((sum, day) => sum + day.views, 0);
+  const max = Math.max(1, ...data.perDay.map(day => day.views));
+  const busiest = data.perDay.reduce((best, day) => day.views > best.views ? day : best, data.perDay[0]);
+  $('#insight-total').textContent = `${total.toLocaleString()} ${total === 1 ? 'view' : 'views'}`;
+  const chart = $('#insight-chart');
+  chart.setAttribute('aria-label', total ? `Daily page views for the last 30 days. ${total} in total; the busiest day was ${formatDate(`${busiest.date}T12:00:00`)} with ${busiest.views}.` : 'No page views recorded in the last 30 days.');
+  chart.replaceChildren(...data.perDay.map(day => {
+    const bar = el('span', 'insight-bar');
+    bar.style.height = `${Math.max(2, (day.views / max) * 100)}%`;
+    bar.title = `${formatDate(`${day.date}T12:00:00`)}: ${day.views} ${day.views === 1 ? 'view' : 'views'}`;
+    return bar;
+  }));
+  const pages = $('#insight-pages');
+  pages.replaceChildren(...(data.topPages.length ? data.topPages.map(page => {
+    const item = el('li');
+    const label = el('span', '', PAGE_NAMES[page.path] || page.path);
+    const meter = el('span', 'insight-meter'); const fill = el('i'); fill.style.width = `${(page.views / data.topPages[0].views) * 100}%`; meter.append(fill);
+    item.append(label, meter, el('strong', '', page.views.toLocaleString()));
+    return item;
+  }) : [el('li', 'insight-empty', 'No visits recorded yet.')]));
+  const status = $('#insight-status');
+  const health = data.health;
+  const database = health.checks.database;
+  const hours = Math.floor(health.uptimeSeconds / 3600);
+  const rows = [
+    ['Health', health.status === 'ok' ? 'All systems working' : health.status === 'degraded' ? 'Degraded: some saves are failing' : 'Down: storage cannot be reached'],
+    ['Storage', `${data.storage === 'postgres' ? 'Postgres database' : 'JSON file on the server disk'} · ${database.status === 'ok' ? `responding in ${database.latencyMs} ms` : `not responding (${database.error || 'unknown error'})`}`],
+    ['Saves', health.checks.writes.lastError ? `Last save failed at ${new Date(health.checks.writes.lastError.at).toLocaleTimeString()}: ${health.checks.writes.lastError.message}` : `Working${health.checks.writes.pending ? ` · ${health.checks.writes.pending} waiting to be written` : ''}`],
+    ['Email', data.emailEnabled ? 'Sending through Resend' : 'Not set up: links are written to the server log'],
+    ['Server', `Up ${hours ? `${hours} h ${Math.floor((health.uptimeSeconds % 3600) / 60)} min` : `${Math.floor(health.uptimeSeconds / 60)} min`} · ${health.runtime.memoryMb} MB memory · Node ${health.runtime.node} · v${health.version}`],
+    ['New readers', `${data.newReaders} in the last 30 days`]
+  ];
+  status.replaceChildren(...rows.flatMap(([term, value]) => [el('dt', '', term), el('dd', '', value)]));
+  status.firstElementChild.nextElementSibling.className = `health-${health.status}`;
+  if (data.storage !== 'postgres') status.append(el('dd', 'insight-warning', 'On free hosting the disk is wiped on every restart. Set DATABASE_URL to keep accounts and books.'));
+  const errors = $('#insight-errors');
+  $('#clear-errors').hidden = data.errors.length === 0;
+  errors.replaceChildren(...(data.errors.length ? data.errors.map(report => {
+    const item = el('li');
+    const head = el('div', 'insight-error-head');
+    head.append(el('span', `error-source source-${report.source}`, report.source === 'server' ? 'Server' : 'Browser'), el('strong', '', report.message));
+    const meta = el('p', '', `${new Date(report.at).toLocaleString()} · ${report.path || 'unknown page'}${report.location ? ` · ${report.location}` : ''}`);
+    item.append(head, meta);
+    if (report.stack) { const details = el('details'); details.append(el('summary', '', 'Stack trace'), el('pre', '', report.stack)); item.append(details); }
+    return item;
+  }) : [el('li', 'insight-empty', 'No errors reported. Everything looks healthy.')]));
 }
 
 // Keeps the sidebar badge current so admins see new submissions without opening the review page.
@@ -159,19 +514,20 @@ function makeCover(book, compact = false) {
   cover.className = `cover-3d theme-${escapeClass(book.coverTheme)}`;
   if (book.coverImage) {
     const img = document.createElement('img');
-    img.className = 'cover-image'; img.alt = ''; img.src = book.coverImage;
+    img.className = 'cover-image'; img.alt = `Cover art for ${book.title}`; img.src = book.coverImage; img.loading = 'lazy'; img.decoding = 'async';
     cover.append(img);
     const overlay = document.createElement('span'); overlay.className = 'cover-overlay'; cover.append(overlay);
   }
   const kicker = document.createElement('span'); kicker.className = 'cover-kicker'; kicker.textContent = 'A BOOK BY';
   const title = document.createElement('strong'); title.className = 'cover-title'; title.textContent = book.title;
   const author = document.createElement('span'); author.className = 'cover-author'; author.textContent = book.author || 'Unknown author';
-  const ornament = document.createElement('span'); ornament.className = 'cover-ornament'; ornament.textContent = '✳';
+  const ornament = document.createElement('span'); ornament.className = 'cover-ornament'; ornament.textContent = '✳'; ornament.setAttribute('aria-hidden', 'true');
   cover.append(kicker, title, author, ornament);
   return cover;
 }
 
 function renderBooks() {
+  if (!state.booksLoaded) return;
   const grid = $('#book-grid');
   grid.replaceChildren();
   const query = $('#search-input').value.trim().toLowerCase();
@@ -216,9 +572,10 @@ function renderBooks() {
     }
     card.append(art, meta);
     card.addEventListener('click', () => openReader(book));
-    card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openReader(book); } });
+    card.addEventListener('keydown', event => { if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openReader(book); } });
     grid.append(card);
   }
+  renderOnboarding();
 }
 
 function renderPublicBooks() {
@@ -266,8 +623,12 @@ function renderAdminBooks() {
   updateAdminBadge(counts.pending);
 
   const showingUsers = state.adminStatus === 'users';
-  list.hidden = showingUsers;
+  const showingInsights = state.adminStatus === 'insights';
+  list.hidden = showingUsers || showingInsights;
   userList.hidden = !showingUsers;
+  $('#admin-insights').hidden = !showingInsights;
+  $('.admin-search').hidden = showingInsights;
+  if (showingInsights) { $('#admin-empty').hidden = true; loadInsights(); return; }
   $('#admin-search').placeholder = showingUsers ? 'Search readers by name or email...' : 'Search by title, author or uploader...';
   const query = $('#admin-search').value.trim().toLowerCase();
   if (showingUsers) { renderAdminUsers(query); return; }
@@ -371,19 +732,34 @@ function renderAdminUsers(query) {
 }
 
 function switchView(view) {
-  if (view === 'community') { showPublic(); return; }
-  if (view === 'admin' && state.user?.role !== 'admin') { notify('Admin access is required.'); return; }
-  const isAdd = view === 'add';
-  $('#library-view').hidden = view !== 'library';
-  $('#add-view').hidden = !isAdd;
-  $('#admin-view').hidden = view !== 'admin';
-  $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+  navigate(view === 'community' ? '/community' : `/${view}`);
+}
+
+const SECTIONS = ['library', 'add', 'admin', 'account'];
+function showSection(view) {
+  for (const name of SECTIONS) $(`#${name}-view`).hidden = name !== view;
+  $$('.nav-item, .mobile-nav-item').forEach(item => {
+    const active = item.dataset.view === view;
+    item.classList.toggle('active', active);
+    if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+  });
+  if (view === 'library') loadBooks();
   if (view === 'admin') loadAdminBooks();
-  if (isAdd) {
+  if (view === 'account') fillAccount();
+  if (view === 'add') {
     $('#book-error').textContent = '';
+    if (state.user.verificationRequired && !state.user.emailVerified) $('#book-error').textContent = 'Confirm your email address first: use the link we sent you, or send a new one from the banner above.';
     $('#book-title').focus({ preventScroll: true });
-  } else renderBooks();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0 });
+}
+
+function fillAccount() {
+  const user = state.user;
+  $('#profile-form [name="name"]').value = user.name;
+  $('#account-email').value = user.email;
+  const since = `Member since ${formatDate(user.createdAt)}.`;
+  $('#account-verified').textContent = user.emailVerified ? `Email confirmed. ${since}` : user.verificationRequired ? `Not confirmed yet: check your inbox for our link. ${since}` : since;
 }
 
 function updateCoverPreview() {
@@ -702,6 +1078,8 @@ async function openReader(book, mode = 'private') {
   renderReader();
   playCoverOpen(book);
   $('#reader-close').focus({ preventScroll: true });
+  document.title = `${book.title}${book.author && book.author !== 'Unknown author' ? ` by ${book.author}` : ''} · Shelfspace`;
+  try { localStorage.setItem('shelfspace-opened-book', '1'); } catch {}
 }
 
 function cycleTextSize() {
@@ -723,7 +1101,9 @@ function closeReader() {
   document.body.style.overflow = '';
   const wasPrivate = state.readerMode === 'private';
   state.activeBook = null;
+  document.title = state.pageTitle;
   if (wasPrivate) renderBooks();
+  else renderOnboarding();
 }
 
 function movePages(direction) {
@@ -731,54 +1111,171 @@ function movePages(direction) {
   turnTo(state.pageIndex + direction * 2);
 }
 
-$$('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
+$$('[data-auth-mode]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.authMode === 'register' ? '/signup' : `/login${location.search}`)));
 $('#auth-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  const payload = { email: form.get('email'), password: form.get('password') };
-  if (state.authMode === 'register') payload.name = form.get('name');
-  const button = event.currentTarget.querySelector('button[type="submit"]');
-  button.disabled = true; $('#auth-error').textContent = '';
-  try {
-    const result = await api(state.authMode === 'register' ? '/api/register' : '/api/login', { method: 'POST', body: JSON.stringify(payload) });
-    state.user = result.user; showWorkspace();
-  } catch (error) { $('#auth-error').textContent = error.message; }
-  finally { button.disabled = false; }
+  const form = event.currentTarget;
+  const isRegister = state.authMode === 'register';
+  $('#auth-error').textContent = '';
+  const rules = isRegister ? { name: RULES.name, email: RULES.email, password: RULES.newPassword } : { email: RULES.email, password: RULES.password };
+  if (!validate(form, rules)) return;
+  const data = new FormData(form);
+  const payload = { email: data.get('email'), password: data.get('password') };
+  if (isRegister) { payload.name = data.get('name'); payload.website = data.get('website'); }
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      const result = await api(isRegister ? '/api/register' : '/api/login', { method: 'POST', body: JSON.stringify(payload) });
+      state.user = result.user;
+      form.reset();
+      navigate(isRegister ? '/library' : safeNext(new URLSearchParams(location.search).get('next')));
+      if (isRegister) notify(result.user.verificationRequired ? `Welcome, ${result.user.name.split(/\s+/)[0]}! We sent a confirmation link to ${result.user.email}.` : `Welcome to Shelfspace, ${result.user.name.split(/\s+/)[0]}!`);
+    } catch (error) { showFormError(form, error); }
+  });
+});
+
+$('#forgot-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $('#forgot-error').textContent = '';
+  if (!validate(form, { email: RULES.email })) return;
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      const result = await api('/api/password/forgot', { method: 'POST', body: JSON.stringify({ email: form.elements.email.value }) });
+      const sent = $('#forgot-sent');
+      sent.hidden = false;
+      sent.innerHTML = result.emailEnabled
+        ? '<strong>Check your inbox.</strong> If an account uses that address, a reset link is on its way. It works for one hour.'
+        : '<strong>Request received.</strong> This site has not set up email yet, so the reset link goes to the site owner. Please contact them to get it.';
+    } catch (error) { showFormError(form, error); }
+  });
+});
+
+$('#reset-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $('#reset-error').textContent = '';
+  const ok = validate(form, {
+    password: RULES.newPassword,
+    confirm: value => !value ? 'Type your new password again.' : value !== form.elements.password.value ? 'The two passwords do not match yet.' : ''
+  });
+  if (!ok) return;
+  if (!state.resetToken) { $('#reset-error').textContent = 'This page needs the link from your reset email. Ask for a new link below.'; return; }
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      const result = await api('/api/password/reset', { method: 'POST', body: JSON.stringify({ token: state.resetToken, password: form.elements.password.value }) });
+      state.resetToken = '';
+      state.user = result.user;
+      state.workspaceUser = null;
+      form.reset();
+      navigate('/library');
+      notify('Password saved. You are signed in, and your other devices were signed out.');
+    } catch (error) { showFormError(form, error); }
+  });
 });
 
 async function signOut() {
   try { await api('/api/logout', { method: 'POST', body: '{}' }); } catch {}
-  showAuth();
+  resetSession();
+  navigate('/login');
+  notify('You have signed out. See you soon.');
 }
 $('#signout-button').addEventListener('click', signOut);
 $('#mobile-signout').addEventListener('click', signOut);
 
-$$('[data-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
-$('#explore-public').addEventListener('click', showPublic);
-$('#public-return').addEventListener('click', () => {
-  if (state.user) { showWorkspace(); switchView('library'); }
-  else { showAuth(); }
-});
-$('#refresh-admin').addEventListener('click', loadAdminBooks);
-$('#export-data').addEventListener('click', async event => {
-  const button = event.currentTarget;
-  button.disabled = true;
+$('#resend-verification').addEventListener('click', event => busy(event.currentTarget, async () => {
   try {
-    const response = await fetch('/api/admin/export', { credentials: 'same-origin' });
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      throw new Error(result.error || 'Could not export the library.');
-    }
-    const disposition = response.headers.get('Content-Disposition') || '';
-    const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'shelfspace-export.json';
-    const objectUrl = URL.createObjectURL(await response.blob());
-    const link = document.createElement('a');
-    link.href = objectUrl; link.download = filename; document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-    notify('Export downloaded. Attach the JSON file in Claude to transfer it.');
+    const result = await api('/api/email/resend', { method: 'POST', body: '{}' });
+    if (result.alreadyVerified) { state.user.emailVerified = true; updateUserChrome(); notify('Your email is already confirmed.'); }
+    else notify(`A new link is on its way to ${state.user.email}.`);
   } catch (error) { notify(error.message); }
-  finally { button.disabled = false; }
+}));
+
+$('#onboarding-dismiss').addEventListener('click', () => { $('#onboarding').hidden = true; finishOnboarding(); });
+
+$('#profile-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $('#profile-error').textContent = '';
+  if (!validate(form, { name: RULES.name })) return;
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      const { user } = await api('/api/account', { method: 'PATCH', body: JSON.stringify({ name: form.elements.name.value }) });
+      state.user = user;
+      updateUserChrome();
+      notify('Your profile is saved.');
+    } catch (error) { showFormError(form, error); }
+  });
 });
+
+$('#password-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $('#password-error').textContent = '';
+  if (!validate(form, { currentPassword: RULES.currentPassword, newPassword: RULES.newPassword })) return;
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      await api('/api/account/password', { method: 'POST', body: JSON.stringify({ currentPassword: form.elements.currentPassword.value, newPassword: form.elements.newPassword.value }) });
+      form.reset();
+      notify('Password updated. Your other devices have been signed out.');
+    } catch (error) { showFormError(form, error); }
+  });
+});
+
+$('#signout-everywhere').addEventListener('click', event => {
+  if (!window.confirm('Sign out of Shelfspace on every device, including this one?')) return;
+  busy(event.currentTarget, async () => {
+    try {
+      await api('/api/logout-all', { method: 'POST', body: '{}' });
+      resetSession();
+      navigate('/login');
+      notify('Signed out everywhere.');
+    } catch (error) { notify(error.message); }
+  });
+});
+
+$('#export-account').addEventListener('click', event => busy(event.currentTarget, async () => {
+  try { await downloadFile('/api/account/export', 'my-shelfspace.json'); notify('Your data is downloading.'); }
+  catch (error) { notify(error.message); }
+}));
+
+$('#delete-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $('#delete-error').textContent = '';
+  if (!validate(form, { password: RULES.password })) return;
+  const count = state.books.length;
+  if (!window.confirm(`Delete your account${count ? ` and your ${count} ${count === 1 ? 'book' : 'books'}` : ''}? This cannot be undone.`)) return;
+  await busy(form.querySelector('button[type="submit"]'), async () => {
+    try {
+      await api('/api/account', { method: 'DELETE', body: JSON.stringify({ password: form.elements.password.value }) });
+      resetSession();
+      navigate('/');
+      notify('Your account and books have been deleted.');
+    } catch (error) { showFormError(form, error); }
+  });
+});
+
+$$('[data-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
+$('.profile').addEventListener('click', event => { if (!event.target.closest('button')) switchView('account'); });
+$('#public-return').addEventListener('click', () => navigate(state.user ? '/library' : '/login'));
+// In-app links change the page without a full reload; ordinary links (privacy, terms) still navigate.
+document.addEventListener('click', event => {
+  const link = event.target.closest('a[data-link]');
+  if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  event.preventDefault();
+  navigate(link.getAttribute('href'));
+});
+window.addEventListener('popstate', route);
+$('#refresh-admin').addEventListener('click', () => (state.adminStatus === 'insights' ? loadInsights() : loadAdminBooks()));
+$('#clear-errors').addEventListener('click', async () => {
+  if (!window.confirm('Clear every error report?')) return;
+  try { await api('/api/admin/errors', { method: 'DELETE' }); await loadInsights(); notify('Error reports cleared.'); }
+  catch (error) { notify(error.message); }
+});
+$('#export-data').addEventListener('click', event => busy(event.currentTarget, async () => {
+  try { await downloadFile('/api/admin/export', 'shelfspace-export.json'); notify('Export downloaded.'); }
+  catch (error) { notify(error.message); }
+}));
 function selectAdminTab(status) {
   state.adminStatus = status;
   $$('[data-admin-status]').forEach(tab => {
@@ -855,20 +1352,24 @@ $('#book-form').addEventListener('submit', async event => {
   const button = form.querySelector('button[type="submit"]');
   const content = $('#book-content').value;
   const title = $('#book-title').value.trim();
-  if (!content.trim()) { $('#book-error').textContent = 'Upload a text file or paste some book text first.'; $('#book-content').focus(); return; }
-  button.disabled = true; $('#book-error').textContent = '';
-  try {
-    const { book } = await api('/api/books', { method: 'POST', body: JSON.stringify({ title, author: $('#book-author').value.trim(), content, coverTheme: state.coverTheme, coverImage: state.coverImage, sourceName: state.sourceName }) });
-    state.books.unshift(book); renderBooks();
-    form.reset();
-    $('#book-content').value = ''; $('#book-file').value = ''; $('#cover-file').value = ''; $('#book-author').value = '';
-    $('#upload-title').textContent = 'Drop your file here'; $('#upload-hint').innerHTML = 'or <u>browse your device</u>';
-    state.sourceName = ''; state.coverImage = ''; state.coverTheme = 'midnight';
-    $('#remove-cover').hidden = true; $$('.theme-swatch').forEach(item => item.classList.toggle('selected', item.dataset.theme === 'midnight'));
-    updateCoverPreview(); switchView('library'); openReader(book);
-    notify('Your book is on the shelf and waiting for review. Enjoy reading!');
-  } catch (error) { $('#book-error').textContent = error.message; }
-  finally { button.disabled = false; }
+  $('#book-error').textContent = '';
+  setFieldError($('#book-title'), title ? '' : 'Give your book a title. The file name works fine.');
+  setFieldError($('#book-content'), content.trim() ? '' : 'Upload a text file above, or paste some book text here.');
+  if (!content.trim()) { $('#book-content').focus(); return; }
+  if (!title) { $('#book-title').focus(); return; }
+  await busy(button, async () => {
+    try {
+      const { book } = await api('/api/books', { method: 'POST', body: JSON.stringify({ title, author: $('#book-author').value.trim(), content, coverTheme: state.coverTheme, coverImage: state.coverImage, sourceName: state.sourceName }) });
+      state.books.unshift(book);
+      form.reset();
+      $('#book-content').value = ''; $('#book-file').value = ''; $('#cover-file').value = ''; $('#book-author').value = '';
+      $('#upload-title').textContent = 'Drop your file here'; $('#upload-hint').innerHTML = 'or <u>browse your device</u>';
+      state.sourceName = ''; state.coverImage = ''; state.coverTheme = 'midnight';
+      $('#remove-cover').hidden = true; $$('.theme-swatch').forEach(item => item.classList.toggle('selected', item.dataset.theme === 'midnight'));
+      updateCoverPreview(); navigate('/library'); openReader(book);
+      notify('Your book is on your shelf and waiting for an editor to review it. Enjoy reading!');
+    } catch (error) { showFormError(form, error, { title: $('#book-title'), content: $('#book-content') }); }
+  });
 });
 
 $('#reader-close').addEventListener('click', closeReader);
@@ -934,7 +1435,8 @@ document.addEventListener('keydown', event => {
 async function start() {
   try {
     const { user } = await api('/api/me');
-    if (user) { state.user = user; showWorkspace(); }
+    state.user = user;
   } catch { /* The sign-in screen is still usable if the API is unavailable. */ }
+  route();
 }
 start();
