@@ -184,7 +184,7 @@ The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_P
 > Without `DATABASE_URL`, data lives on the server's disk, and on Render's free plan that disk is wiped on every restart or redeploy. The admin **Insights** tab warns you when this is the case.
 
 > [!NOTE]
-> Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake.
+> Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake. Let them sleep: a workspace gets 750 free instance hours a month across all its free services, and once they run out Render suspends every free web service until the next month.
 
 ### 🩺 Health checks
 
@@ -197,7 +197,7 @@ The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_P
                 "writes": { "status": "ok", "pending": 0 }, "email": { "status": "ok" } } }
   ```
 
-  `status` is `ok`, `degraded` (the last save failed) or `down` (the database is unreachable, HTTP `503`). Point an uptime monitor such as [UptimeRobot](https://uptimerobot.com) at it to get an alert when something breaks; that also keeps a free Render service awake. Results are cached for 5 seconds, and error details, memory use and counts are shown only to admins in **Insights → Site status**.
+  `status` is `ok`, `degraded` (the last save failed) or `down` (the database is unreachable, HTTP `503`). Point an uptime monitor such as [UptimeRobot](https://uptimerobot.com) at it to get an alert when something breaks, but only on a paid instance: frequent checks keep a free Render service awake around the clock and use up its free hours. Results are cached for 5 seconds, and error details, memory use and counts are shown only to admins in **Insights → Site status**.
 
 ### 💾 Backups
 
