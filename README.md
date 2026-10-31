@@ -3,14 +3,14 @@
 </p>
 
 <p align="center">
-  <a href="https://shelfspace-u4i2.onrender.com"><img alt="Live demo" src="https://img.shields.io/badge/live_demo-shelfspace-536b52?style=for-the-badge&logo=render&logoColor=white"></a>
+  <a href="https://shelfspace-woad.vercel.app"><img alt="Live demo" src="https://img.shields.io/badge/live_demo-shelfspace-536b52?style=for-the-badge&logo=vercel&logoColor=white"></a>
   <img alt="Node.js 18+" src="https://img.shields.io/badge/node-%E2%89%A518-405840?style=for-the-badge&logo=nodedotjs&logoColor=white">
-  <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-0-c58653?style=for-the-badge">
+  <img alt="No framework" src="https://img.shields.io/badge/framework-none-c58653?style=for-the-badge">
   <img alt="Vanilla JS" src="https://img.shields.io/badge/vanilla-JS%20%2B%20CSS-3a4b3b?style=for-the-badge&logo=javascript&logoColor=white">
 </p>
 
 <p align="center">
-  <b><a href="https://shelfspace-u4i2.onrender.com">Open the live site</a></b> ·
+  <b><a href="https://shelfspace-woad.vercel.app">Open the live site</a></b> ·
   <a href="#-features">Features</a> ·
   <a href="#-screenshots">Screenshots</a> ·
   <a href="#-quick-start">Quick start</a> ·
@@ -22,7 +22,7 @@
 
 **Shelfspace** turns plain `.txt` and `.md` files into a cozy, dimensional reading experience. Upload a book, give it a cover, and read it in a two-page 3D book that turns real pages, with soft paper sounds if you like. Books stay private until an admin approves them for the public **Community shelf**.
 
-It is a single small Node.js server with one dependency (the Postgres driver): no framework and no build step. It runs on a local JSON file out of the box, or on Postgres when you set `DATABASE_URL`.
+It is a small Node.js app with no framework and no build step. The same code runs as an ordinary server (`npm start`) or as a serverless function on Vercel, where the live site is hosted. It keeps data in a local JSON file out of the box, or in Postgres when you set `DATABASE_URL`; the live site uses [Neon](https://neon.tech).
 
 <p align="center">
   <img src="docs/page-turn.gif" alt="A page turning in the Shelfspace 3D reader" width="720">
@@ -170,29 +170,43 @@ DEMO_SEED=1 DATA_FILE=./demo-data.json npm start
 
 ## 🌍 Deploy your own
 
+Shelfspace needs a Postgres database when it is hosted. A free one from [Neon](https://neon.tech) or [Supabase](https://supabase.com) is plenty; copy its connection string (`postgresql://...`, the pooled one on Neon). Tables are created on first start, and an existing `data.json` is imported automatically into an empty database.
+
+### ▲ Vercel (recommended)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/digvijay165/Shelfspace&env=DATABASE_URL,ADMIN_EMAIL)
+
+1. Click **Deploy with Vercel** and sign in with GitHub.
+2. Fill in `DATABASE_URL` (the connection string) and `ADMIN_EMAIL` (the email you will sign up with; that account becomes the site owner).
+3. Optional: add `DEMO_SEED=1` for the sample shelf, and a [Resend](https://resend.com) API key as `RESEND_API_KEY` with `MAIL_FROM` so verification and reset emails are actually sent.
+4. When the deploy finishes, open your `vercel.app` link and create your account with that email.
+
+Or from your computer, with the [Vercel CLI](https://vercel.com/docs/cli):
+
+```bash
+npx vercel link
+npx vercel env add DATABASE_URL production
+npx vercel env add ADMIN_EMAIL production
+npx vercel deploy --prod
+```
+
+How it runs there: [`vercel.json`](vercel.json) sends pages and the API to one function, [`api/index.js`](api/index.js), and serves images, scripts and styles straight from Vercel's CDN. There is no instance-hour limit and nothing to keep awake. The site address is picked up automatically; set `APP_URL` if you add a custom domain. The function runs in Portland (`pdx1`), next to a Neon database in AWS US West 2; change `regions` in `vercel.json` to the Vercel region closest to your database.
+
+Vercel may run several copies of the function at once. Each copy checks a shared version number in the database before every request and reloads only when another copy has saved something, so every visitor sees the same library. Sign-in rate limits are counted per copy, so they are a little looser than on a single server.
+
+### 🖥️ Render, or any Node host
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/digvijay165/Shelfspace)
 
-1. **Create a free Postgres database**, for example on [Neon](https://neon.tech) or [Supabase](https://supabase.com), and copy its connection string (`postgres://...`).
-2. Click **Deploy to Render** and sign in with GitHub.
-3. Fill in `ADMIN_EMAIL` (the email you will sign up with; that account becomes the site owner) and `DATABASE_URL` (the connection string).
-4. Optional but recommended: create a [Resend](https://resend.com) API key and set `RESEND_API_KEY` and `MAIL_FROM` so verification and reset emails are actually sent.
-5. When the deploy finishes, open your `onrender.com` link and create your account with that email.
+Click **Deploy to Render**, fill in the same `ADMIN_EMAIL` and `DATABASE_URL`, and open your `onrender.com` link when it finishes. The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_PROXY`, the `/healthz` health check and the demo shelf). Anywhere else, run `npm start` with `HOST=0.0.0.0`, `TRUST_PROXY=1` behind an HTTPS proxy, and the variables above.
 
-The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_PROXY`, the `/healthz` health check and the demo shelf). Tables are created on first start, and an existing `data.json` is imported automatically into an empty database.
+Run one server per database: a long-running server does not watch for changes made by other servers, so do not point Render and Vercel at the same database at once.
 
 > [!IMPORTANT]
 > Without `DATABASE_URL`, data lives on the server's disk, and on Render's free plan that disk is wiped on every restart or redeploy. The admin **Insights** tab warns you when this is the case.
 
 > [!NOTE]
-> Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake. Let them sleep: a workspace gets 750 free instance hours a month across all its free services, and once they run out Render suspends every free web service until the next month.
-
-### ▲ Or on Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/digvijay165/Shelfspace&env=DATABASE_URL,ADMIN_EMAIL)
-
-Vercel runs Shelfspace as a serverless function ([`api/index.js`](api/index.js), routed by [`vercel.json`](vercel.json)) with no instance-hour limit, and serves images, scripts and styles from its CDN. `DATABASE_URL` is required there, since a function has no disk to keep data on. Set `DEMO_SEED=1` for the sample shelf, and `RESEND_API_KEY` and `MAIL_FROM` for email. The site address is picked up automatically; set `APP_URL` if you add a custom domain.
-
-Vercel may run several copies of the function at once. Each one checks a shared version number in the database before every request and reloads only when another copy has saved something. Sign-in rate limits are counted per copy, so they are looser than on a single server.
+> Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab, Vercel's **Logs**) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake. Let them sleep: a workspace gets 750 free instance hours a month across all its free services, and once they run out Render suspends every free web service until the next month.
 
 ### 🩺 Health checks
 
@@ -239,11 +253,11 @@ Only published books are ever served publicly. Every admin endpoint checks the s
 | `DATABASE_URL` | none | Postgres connection string. When set, everything is stored in Postgres |
 | `DATA_FILE` | `./data.json` | Where data is stored when there is no `DATABASE_URL` |
 | `ADMIN_EMAIL` | contents of `admin-email.txt` | The site owner's email, who always has admin access |
-| `APP_URL` | `RENDER_EXTERNAL_URL`, else localhost | Public address used in email links, canonical links and the sitemap |
+| `APP_URL` | the Render or Vercel address, else localhost | Public address used in email links, canonical links and the sitemap |
 | `RESEND_API_KEY` | none | Sends verification and reset emails through Resend. Also turns on "verify before uploading" |
 | `MAIL_FROM` | `Shelfspace <onboarding@resend.dev>` | Sender for account emails (use an address on a domain you verified in Resend) |
 | `CONTACT_URL` | this repo's issues | Where the privacy policy and terms send questions |
-| `TRUST_PROXY` | off | Set to `1` behind an HTTPS proxy so cookies are `Secure` and client IPs are used for rate limits |
+| `TRUST_PROXY` | off (always on on Vercel) | Set to `1` behind an HTTPS proxy so cookies are `Secure` and client IPs are used for rate limits |
 | `DEMO_SEED` | off | Set to `1` to add sample books when the library is empty |
 | `DATABASE_SSL` | on for remote hosts | Set to `0` to connect without TLS, or `1` to force it |
 
@@ -291,6 +305,7 @@ Shelfspace/
 │   ├── restore.js       # npm run restore
 │   └── screenshots.js   # Regenerates docs/screenshots with headless Chrome
 ├── docs/                # Banner, logo, screenshots and the page-turn GIF
+├── neon.ts              # Neon project config (branch policy)
 └── render.yaml          # One-click Render blueprint
 ```
 
@@ -329,8 +344,8 @@ Shelfspace/
 <summary><b>Notes and limits</b></summary>
 
 - Text files can be up to 2 MB; cover images (PNG, JPG, WebP, GIF) up to 1 MB. Both are stored with the book.
-- Data is cached in memory and written through to storage, so run a single server instance per database.
-- Rate limit counters live in memory and reset when the server restarts.
+- Data is cached in memory and written through to storage. Vercel's function copies keep each other up to date through the database; a long-running server does not, so run one per database.
+- Rate limit counters live in memory and reset when the server restarts (on Vercel, they are per function copy).
 - Run `npm test` for the end-to-end suite; set `TEST_DATABASE_URL` to run it against Postgres.
 - The admin export contains book text, covers, statuses and account names and emails, but never passwords, hashes or session tokens.
 - Google Fonts are optional; the interface falls back to system serif and sans-serif fonts offline.

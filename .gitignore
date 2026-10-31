@@ -14,3 +14,6 @@ backups/
 .env.local
 .env.*.local
 .neon
+
+# Vercel CLI project link
+.vercel
