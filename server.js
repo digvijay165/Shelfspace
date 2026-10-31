@@ -14,9 +14,12 @@ const PORT = Number(process.env.PORT || 4173);
 // Local installs stay on this computer; hosts such as Render set HOST=0.0.0.0.
 const HOST = process.env.HOST || '127.0.0.1';
 // Behind a hosting proxy the TLS connection ends at the proxy, so trust its forwarded headers.
-const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+// Vercel always runs behind its own proxy.
+const ON_VERCEL = Boolean(process.env.VERCEL);
+const TRUST_PROXY = process.env.TRUST_PROXY === '1' || ON_VERCEL;
 // Links in emails always use this address, never the request's Host header, so they cannot be spoofed.
-const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
+const VERCEL_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '';
+const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || VERCEL_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const CONTACT_URL = process.env.CONTACT_URL || 'https://github.com/digvijay165/Shelfspace/issues';
 let configuredAdminEmail = process.env.ADMIN_EMAIL || '';
 if (!configuredAdminEmail) {
@@ -94,7 +97,10 @@ function isHttps(req) {
 
 function clientIp(req) {
   if (TRUST_PROXY) {
-    const forwarded = String(req.headers['true-client-ip'] || req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    // Vercel replaces X-Forwarded-For with the real client address but passes True-Client-IP through
+    // from the visitor, so it is only trusted elsewhere (Render's CDN sets it).
+    const header = ON_VERCEL ? req.headers['x-forwarded-for'] : req.headers['true-client-ip'] || req.headers['x-forwarded-for'];
+    const forwarded = String(header || '').split(',')[0].trim();
     if (forwarded) return forwarded;
   }
   return req.socket.remoteAddress || 'unknown';
@@ -711,7 +717,7 @@ function sameOrigin(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
-const server = http.createServer(async (req, res) => {
+async function handle(req, res) {
   let url;
   try {
     url = new URL(req.url, 'http://localhost');
@@ -743,7 +749,7 @@ const server = http.createServer(async (req, res) => {
     if (res.headersSent || res.destroyed) return;
     sendJson(res, status, { error: status === 500 ? 'Something went wrong on our side. Please try again in a moment.' : error.message });
   }
-});
+}
 
 async function prepareData() {
   await store.load();
@@ -780,6 +786,14 @@ async function prepareData() {
   }
 }
 
+// Serverless hosts (api/index.js) call this on every request; it loads the data once per server copy
+// and tries again on the next request if the database could not be reached.
+let prepared = null;
+function prepare() {
+  if (!prepared) prepared = prepareData().catch(error => { prepared = null; throw error; });
+  return prepared;
+}
+
 async function main() {
   await prepareData();
   if (process.argv[2] === 'promote-admin') {
@@ -799,6 +813,7 @@ async function main() {
     store.removeWhere('sessions', item => Date.parse(item.expiresAt) <= Date.now()).catch(() => {});
     store.removeWhere('tokens', item => Date.parse(item.expiresAt) <= Date.now()).catch(() => {});
   }, HOUR).unref();
+  const server = http.createServer(handle);
   server.listen(PORT, HOST, () => {
     console.log(`Shelfspace is ready at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(store.kind === 'postgres' ? 'Library data is saved in Postgres (DATABASE_URL)' : `Library data is saved in ${DATA_FILE}`);
@@ -814,7 +829,11 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error('Shelfspace could not start:', error.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(error => {
+    console.error('Shelfspace could not start:', error.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { handle, prepare, store };

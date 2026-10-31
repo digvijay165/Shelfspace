@@ -186,6 +186,14 @@ The included [`render.yaml`](render.yaml) sets everything else (`HOST`, `TRUST_P
 > [!NOTE]
 > Without `RESEND_API_KEY`, email links are written to the server log (Render's **Logs** tab) instead of being sent, and uploads do not require a verified email. Free Render services also sleep after 15 minutes idle; the next visit takes about a minute to wake. Let them sleep: a workspace gets 750 free instance hours a month across all its free services, and once they run out Render suspends every free web service until the next month.
 
+### ▲ Or on Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/digvijay165/Shelfspace&env=DATABASE_URL,ADMIN_EMAIL)
+
+Vercel runs Shelfspace as a serverless function ([`api/index.js`](api/index.js), routed by [`vercel.json`](vercel.json)) with no instance-hour limit, and serves images, scripts and styles from its CDN. `DATABASE_URL` is required there, since a function has no disk to keep data on. Set `DEMO_SEED=1` for the sample shelf, and `RESEND_API_KEY` and `MAIL_FROM` for email. The site address is picked up automatically; set `APP_URL` if you add a custom domain.
+
+Vercel may run several copies of the function at once. Each one checks a shared version number in the database before every request and reloads only when another copy has saved something. Sign-in rate limits are counted per copy, so they are looser than on a single server.
+
 ### 🩺 Health checks
 
 - **`/healthz`** answers `ok` whenever the server process is up. Render uses it to decide whether a deploy succeeded. It deliberately does not touch the database, so a database outage does not put the server into a restart loop.
@@ -258,6 +266,8 @@ Copy [`.env.example`](.env.example) for a starting point. All of these stay on t
 ```text
 Shelfspace/
 ├── server.js            # HTTP server, JSON API, auth, review workflow, pages
+├── api/index.js         # Vercel entry point around the same handler
+├── vercel.json          # Vercel routing: pages and API to the function, assets to the CDN
 ├── lib/
 │   ├── store.js         # Postgres or JSON file storage, with write-through cache
 │   ├── mailer.js        # Verification and reset emails (Resend)

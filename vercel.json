@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.js": { "includeFiles": "{public,demo}/**" }
+  },
+  "routes": [
+    { "src": "/.*", "headers": { "X-Content-Type-Options": "nosniff" }, "continue": true },
+    { "src": "/", "dest": "/api/index" },
+    { "src": "/.*\\.html", "dest": "/api/index" },
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/api/index" }
+  ]
+}
